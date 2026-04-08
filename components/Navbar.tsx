@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import CartDrawer from '@/components/CartDrawer'; // <-- Import CartDrawer di sini
+import CartDrawer from '@/components/CartDrawer'; 
 
 export default function Navbar() {
   const [isNavVisible, setIsNavVisible] = useState(true);
@@ -64,24 +64,40 @@ export default function Navbar() {
         </nav>
       </header>
 
-      {/* Overlay Menu Mobile */}
-      <div className={`fixed inset-0 z-50 bg-black/20 backdrop-blur-sm transition-all duration-500 ${isMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`} onClick={() => setIsMenuOpen(false)} />
+      {/* Overlay transparan untuk mendeteksi klik di luar menu */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-50 bg-transparent" onClick={() => setIsMenuOpen(false)} />
+      )}
 
       {/* Drawer Menu Mobile (Kiri) */}
-      <div className={`fixed top-0 left-0 h-full w-[80vw] md:w-[400px] bg-white z-50 transform transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="px-8 py-6 flex justify-between items-center border-b border-gray-100">
-          <span className="text-xs uppercase tracking-widest font-medium">Menu</span>
-          <button onClick={() => setIsMenuOpen(false)} className="text-2xl font-light hover:opacity-50 transition-opacity">&times;</button>
+      <div 
+        className={`fixed top-0 left-0 h-[100dvh] w-[80vw] md:w-[400px] bg-black/80 backdrop-blur-md text-white z-[60] transform transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        {/* Header Drawer (Hanya ikon X) */}
+        <div className="px-8 py-6 flex justify-end items-center">
+          <button onClick={() => setIsMenuOpen(false)} className="text-3xl font-light hover:opacity-50 transition-opacity">&times;</button>
         </div>
-        <div className="flex flex-col gap-6 p-8 text-lg font-light tracking-wide uppercase">
+        
+        {/* Menu Navigasi Utama */}
+        <div className="flex flex-col gap-6 p-8 text-lg font-light tracking-wide uppercase mt-4">
           <Link href="/" onClick={() => setIsMenuOpen(false)} className="hover:translate-x-2 transition-transform">HOME</Link>
           <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="hover:translate-x-2 transition-transform">SHOP</Link>
           <Link href="/about" onClick={() => setIsMenuOpen(false)} className="hover:translate-x-2 transition-transform">ABOUT</Link>
-          <Link href="/contact" onClick={() => setIsMenuOpen(false)} className="hover:translate-x-2 transition-transform">CONTACT</Link>
         </div>
-        <div className="mt-auto p-8 border-t border-gray-100 flex flex-col gap-4 text-xs font-light tracking-widest md:hidden uppercase">
-          <Link href="#">Search</Link>
-          <Link href="#">Account</Link>
+        
+        {/* Footer Drawer (Menu Tambahan & Copyright) */}
+        <div className="mt-auto p-8 flex flex-col gap-8">
+          <div className="flex flex-col gap-4 text-[10px] md:text-xs font-light tracking-widest uppercase">
+            <Link href="#" onClick={() => setIsMenuOpen(false)} className="hover:text-white transition-colors">FAQs</Link>
+            <Link href="#" onClick={() => setIsMenuOpen(false)} className="hover:text-white transition-colors">Careers</Link>
+            <Link href="/contact" onClick={() => setIsMenuOpen(false)} className="hover:text-white transition-colors">Contact Us</Link>
+          </div>
+          
+          <div className="pt-6 border-white/20">
+            <p className="text-[9px] tracking-[0.2em] uppercase font-light">
+              &copy; 2026 ALIVE MANSION
+            </p>
+          </div>
         </div>
       </div>
     </>
