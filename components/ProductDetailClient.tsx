@@ -237,7 +237,7 @@ export default function ProductDetailClient({ product, relatedProducts }: { prod
             </h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-10 md:gap-x-6 md:gap-y-16">
               {relatedProducts.map((relProduct) => {
-                const isSoldOut = relProduct.variants.length > 0 && !relProduct.variants.some((v: any) => v.isAvailable);
+                const isSoldOut = relProduct.variants.length > 0 && !relProduct.variants.some((v: any) => v.stock > 0);
 
                 return (
                   <ProductCard
