@@ -18,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-white text-black antialiased pt-20 flex flex-col min-h-screen`}>
+      <body className={`${inter.className} bg-white text-black antialiased pt-[68px] flex flex-col min-h-screen`}>
         {/* Tambahkan Navbar global */}
         <Navbar />
 

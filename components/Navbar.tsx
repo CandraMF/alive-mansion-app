@@ -34,28 +34,35 @@ export default function Navbar() {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 w-full z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 transition-transform duration-500 ease-in-out ${isNavVisible ? 'translate-y-0' : '-translate-y-full'
+        className={`fixed top-0 left-0 w-full z-40 bg-white backdrop-blur-md border-b border-gray-100 transition-transform duration-500 ease-in-out ${isNavVisible ? 'translate-y-0' : '-translate-y-full'
           }`}
       >
-        <nav className="flex justify-between items-center px-6 py-5 md:px-12 max-w-[1600px] mx-auto">
+        <nav className="flex justify-between items-center px-6 py-0.5 md:px-6 max-w-[1600px] mx-auto">
           {/* Bagian Kiri: Hamburger Menu */}
           <div className="flex-1">
             <button onClick={() => setIsMenuOpen(true)} className="p-2 -ml-2 focus:outline-none hover:opacity-60 flex flex-col gap-[5px]" aria-label="Menu">
-              <div className="w-6 h-[1px] bg-black"></div>
-              <div className="w-6 h-[1px] bg-black"></div>
+              <div className="w-6 h-[2PX] bg-black"></div>
+              <div className="w-6 h-[2PX] bg-black"></div>
+              <div className="w-6 h-[2PX] bg-black"></div>
             </button>
           </div>
 
           {/* Bagian Tengah: Logo */}
           <div className="flex-1 text-center">
-            <Link href="/" className="text-xl md:text-2xl font-light tracking-[0.2em] uppercase whitespace-nowrap">
-              Alive Mansion
+            <Link href="/" className="inline-block">
+              <img 
+                src="/logo-black.png" // Ganti dengan logo Anda
+                alt="Alive Mansion Logo"
+                width={120}
+                height={40}
+                className="object-contain"
+              />
             </Link>
           </div>
 
           {/* Bagian Kanan: Menu Kanan */}
           <div className="flex-1 flex justify-end gap-4 md:gap-8 text-[10px] md:text-xs uppercase tracking-widest font-light items-center">
-            <button className="hover:opacity-50 transition-opacity hidden md:block">Search</button>
+            <button className="hover:opacity-50 transition-opacity hidden md:block">SEARCH</button>
             <Link href="#" className="hover:opacity-50 transition-opacity hidden md:block">Account</Link>
 
             {/* CartDrawer menggantikan <Link> My Bag */}
@@ -71,7 +78,7 @@ export default function Navbar() {
 
       {/* Drawer Menu Mobile (Kiri) */}
       <div 
-        className={`fixed top-0 left-0 h-[100dvh] w-[80vw] md:w-[400px] bg-black/80 backdrop-blur-md text-white z-[60] transform transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed top-0 left-0 h-[100dvh] w-[80vw] md:w-[400px] bg-black/70 backdrop-blur-md text-white z-[60] transform transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         {/* Header Drawer (Hanya ikon X) */}
         <div className="px-8 py-6 flex justify-end items-center">
@@ -79,15 +86,15 @@ export default function Navbar() {
         </div>
         
         {/* Menu Navigasi Utama */}
-        <div className="flex flex-col gap-6 p-8 text-lg font-light tracking-wide uppercase mt-4">
-          <Link href="/" onClick={() => setIsMenuOpen(false)} className="hover:translate-x-2 transition-transform">HOME</Link>
-          <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="hover:translate-x-2 transition-transform">SHOP</Link>
-          <Link href="/about" onClick={() => setIsMenuOpen(false)} className="hover:translate-x-2 transition-transform">ABOUT</Link>
+        <div className="flex flex-col gap-4 p-8 text-md font-light tracking-wide uppercase mt-4">
+          <Link href="/" onClick={() => setIsMenuOpen(false)} className="transition-transform">HOME</Link>
+          <Link href="/shop" onClick={() => setIsMenuOpen(false)} className="transition-transform">SHOP</Link>
+          <Link href="/about" onClick={() => setIsMenuOpen(false)} className="transition-transform">ABOUT</Link>
         </div>
         
         {/* Footer Drawer (Menu Tambahan & Copyright) */}
         <div className="mt-auto p-8 flex flex-col gap-8">
-          <div className="flex flex-col gap-4 text-[10px] md:text-xs font-light tracking-widest uppercase">
+          <div className="flex flex-col gap-4 text-[10px] md:text-xs font-light tracking-widest">
             <Link href="#" onClick={() => setIsMenuOpen(false)} className="hover:text-white transition-colors">FAQs</Link>
             <Link href="#" onClick={() => setIsMenuOpen(false)} className="hover:text-white transition-colors">Careers</Link>
             <Link href="/contact" onClick={() => setIsMenuOpen(false)} className="hover:text-white transition-colors">Contact Us</Link>

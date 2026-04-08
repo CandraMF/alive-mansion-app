@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export default function Footer() {
 	return (
-		<footer className="px-6 md:px-10 py-12 border-t border-border">
+		<footer className="px-6 md:px-10 py-12 border-border">
 			<div className="max-w-6xl mx-auto">
 				<div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
 					<div>
@@ -46,8 +46,8 @@ export default function Footer() {
 						</div>
 					</div>
 				</div>
-				<div className="text-center border-t border-border pt-8">
-					<p className="font-serif text-sm tracking-wider mb-4">Maison Margiela</p>
+				<div className="text-center border-border pt-8">
+					<p className="font-serif text-sm tracking-wider mb-4">Alive Mansion</p>
 					<p className="text-[10px] text-muted-foreground">
 						Copyright © 2026 — v1.0
 					</p>
