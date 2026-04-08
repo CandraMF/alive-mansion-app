@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import DeleteProductButton from '@/components/DeleteProductButton'; // Kita buat ini di bawah
 
 // Format angka ke Rupiah
 const formatRupiah = (angka: number) => {
@@ -11,19 +12,17 @@ const formatRupiah = (angka: number) => {
 };
 
 export default async function AdminProductsPage() {
-  // Mengambil semua produk dari database, termasuk data variannya untuk menghitung stok
   const products = await prisma.product.findMany({
     include: {
       variants: true,
     },
     orderBy: {
-      createdAt: 'desc', // Urutkan dari yang terbaru
+      createdAt: 'desc',
     },
   });
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-8">
-
       {/* Header & Action Button */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
@@ -54,8 +53,6 @@ export default async function AdminProductsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-
-              {/* Jika database kosong */}
               {products.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500 font-medium">
@@ -64,9 +61,7 @@ export default async function AdminProductsPage() {
                 </tr>
               )}
 
-              {/* Looping data produk dari database */}
               {products.map((product) => {
-                // Menghitung total stok dari semua ukuran (varian) yang berstatus true (available)
                 const isAvailable = product.variants.some(v => v.isAvailable);
                 const variantCount = product.variants.length;
 
@@ -87,9 +82,10 @@ export default async function AdminProductsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-sm text-[9px] font-bold uppercase tracking-widest ${product.status === 'PUBLISHED' ? 'bg-green-100 text-green-800' :
-                          product.status === 'DRAFT' ? 'bg-gray-200 text-gray-600' : 'bg-red-100 text-red-800'
-                        }`}>
+                      <span className={`px-2.5 py-1 rounded-sm text-[9px] font-bold uppercase tracking-widest ${
+                        product.status === 'PUBLISHED' ? 'bg-green-100 text-green-800' :
+                        product.status === 'DRAFT' ? 'bg-gray-200 text-gray-600' : 'bg-red-100 text-red-800'
+                      }`}>
                         {product.status}
                       </span>
                     </td>
@@ -100,19 +96,17 @@ export default async function AdminProductsPage() {
                       >
                         Edit
                       </Link>
-                      <button className="text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-700">
-                        Delete
-                      </button>
+                      
+                      {/* Komponen Button Delete */}
+                      <DeleteProductButton productId={product.id} />
                     </td>
                   </tr>
                 );
               })}
-
             </tbody>
           </table>
         </div>
       </div>
-
     </div>
   );
 }
