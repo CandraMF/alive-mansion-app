@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- 1. TABEL PRODUK ---
+model Product {
+  id          String         @id @default(cuid())
+  name        String
+  description String         @db.Text
+  price       Int            // Menggunakan Int untuk IDR (Rupiah)
+  status      String         @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  
+  // Relasi
+  variants    Variant[]
+  images      ProductImage[]
+  
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+// --- 2. TABEL GAMBAR PRODUK ---
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  // Jika produk dihapus, gambar ikut terhapus (Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  position  Int      @default(0) // Untuk mengatur urutan gambar utama dan slider
+  
+  createdAt DateTime @default(now())
+}
+
+// --- 3. TABEL VARIAN (UKURAN & WARNA) ---
+model Variant {
+  id          String      @id @default(cuid())
+  productId   String
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  color       String
+  size        String
+  stock       Int         @default(0)
+  sku         String      @unique // Stock Keeping Unit (Kode unik barang)
+  
+  // Relasi ke pesanan
+  orderItems  OrderItem[]
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+// --- 4. TABEL PESANAN (ORDER) ---
+model Order {
+  id            String      @id @default(cuid())
+  customerName  String
+  customerEmail String
+  totalAmount   Int
+  status        String      @default("PENDING") // PENDING, PAID, SHIPPED, COMPLETED, CANCELLED
+  xenditInvoice String?     // ID Invoice dari Xendit
+  
+  // Relasi
+  items         OrderItem[]
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// --- 5. TABEL DETAIL BARANG DALAM PESANAN ---
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  variantId String
+  variant   Variant  @relation(fields: [variantId], references: [id])
+  
+  quantity  Int
+  priceAt   Int      // Merekam harga saat barang dibeli (mencegah perubahan jika harga asli naik)
+}
