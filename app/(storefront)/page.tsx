@@ -1,5 +1,6 @@
 'use client';
 
+import LoadingScreen from '@/components/LoadingScreen';
 import Image from 'next/image'; import Link from 'next/link';
 import { useRef, useState } from 'react';
 
@@ -27,6 +28,8 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen">
+
+      <LoadingScreen />
 
       <section className="relative w-full h-[calc(100vh+68px)] overflow-hidden">
         <video
