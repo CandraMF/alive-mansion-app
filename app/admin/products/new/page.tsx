@@ -8,7 +8,7 @@ import Image from 'next/image';
 export default function NewProductPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,36 +32,47 @@ export default function NewProductPage() {
   const [isUploading, setIsUploading] = useState(false);
 
   // Fungsi Upload Gambar ke Vercel Blob
+  // Fungsi Upload Gambar ke Vercel Blob (Mendukung Multiple Upload)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    // 1. Ambil semua file yang dipilih oleh user
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    // Batasi maksimal 4 gambar
-    if (images.length >= 4) {
-      alert("Maximum 4 images allowed.");
+    // 2. Validasi batas maksimal 4 gambar
+    if (images.length + files.length > 4) {
+      alert(`Maximum 4 images allowed. You can only add ${4 - images.length} more.`);
+      // Reset input agar user bisa memilih ulang
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     setIsUploading(true);
-    
+
     try {
-      // Panggil API upload yang baru saja kita buat
-      const response = await fetch(`/api/admin/upload?filename=${file.name}`, {
-        method: 'POST',
-        body: file,
+      // 3. Upload SEMUA file secara bersamaan (paralel) menggunakan Promise.all agar lebih cepat
+      const uploadPromises = files.map(async (file) => {
+        const response = await fetch(`/api/admin/upload?filename=${file.name}`, {
+          method: 'POST',
+          body: file,
+        });
+
+        const newBlob = await response.json();
+        if (!response.ok) throw new Error(newBlob.error || 'Upload failed');
+
+        return newBlob.url; // Kembalikan URL gambar yang berhasil
       });
 
-      const newBlob = await response.json();
+      // Tunggu sampai semua gambar selesai diunggah
+      const uploadedUrls = await Promise.all(uploadPromises);
 
-      if (!response.ok) throw new Error(newBlob.error || 'Upload failed');
+      // 4. Masukkan semua URL baru sekaligus ke dalam state gambar
+      setImages((prev) => [...prev, ...uploadedUrls]);
 
-      // Masukkan URL gambar yang sukses di-upload ke dalam state array images
-      setImages((prev) => [...prev, newBlob.url]);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setIsUploading(false);
-      // Reset input file agar bisa memilih file yang sama lagi jika perlu
+      // Reset input file
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -73,7 +84,7 @@ export default function NewProductPage() {
   // Fungsi Submit Utama (Menyimpan Teks + URL Gambar ke Database)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (images.length === 0) {
       setError("Please upload at least 1 image.");
       return;
@@ -120,25 +131,25 @@ export default function NewProductPage() {
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-        
+
         {/* BAGIAN 1: INFO UMUM (Tetap sama) */}
         <div className="bg-white p-6 md:p-8 border border-gray-200 shadow-sm rounded-md flex flex-col gap-6">
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-2 border-b border-gray-100 pb-2">General Information</h2>
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-widest">Product Name *</label>
-            <input required type="text" className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" placeholder="e.g. Work Jacket 2.0" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})}/>
+            <input required type="text" className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" placeholder="e.g. Work Jacket 2.0" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-widest">Description</label>
-            <textarea rows={4} className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none resize-y" placeholder="Product details..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})}/>
+            <textarea rows={4} className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none resize-y" placeholder="Product details..." value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-widest">Price (IDR) *</label>
-            <input required type="number" min="0" className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" placeholder="850000" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})}/>
+            <input required type="number" min="0" className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" placeholder="850000" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} />
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-widest">Status</label>
-            <select className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none bg-white" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
+            <select className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none bg-white" value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}>
               <option value="PUBLISHED">Published (Visible)</option>
               <option value="DRAFT">Draft (Hidden)</option>
               <option value="ARCHIVED">Archived</option>
@@ -152,14 +163,14 @@ export default function NewProductPage() {
             <h2 className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Product Images (Max 4)</h2>
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{images.length} / 4 Uploaded</span>
           </div>
-          
+
           {/* Grid Preview Gambar */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {images.map((url, idx) => (
               <div key={idx} className="aspect-square relative border border-gray-200 bg-gray-50 group overflow-hidden rounded-sm">
                 <Image src={url} alt={`Preview ${idx + 1}`} fill className="object-cover" />
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => removeImage(idx)}
                   className="absolute top-2 right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
                 >
@@ -169,10 +180,10 @@ export default function NewProductPage() {
                 {idx === 0 && <span className="absolute bottom-2 left-2 bg-black text-white text-[8px] font-bold uppercase tracking-widest px-2 py-1 rounded-sm">Main</span>}
               </div>
             ))}
-            
+
             {/* Tombol Upload (Hanya muncul jika gambar < 4) */}
             {images.length < 4 && (
-              <div 
+              <div
                 onClick={() => !isUploading && fileInputRef.current?.click()}
                 className={`aspect-square border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-2 rounded-sm transition-colors ${isUploading ? 'bg-gray-100 cursor-wait' : 'hover:bg-gray-50 hover:border-black cursor-pointer'}`}
               >
@@ -184,10 +195,11 @@ export default function NewProductPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Add Image</span>
                   </>
                 )}
-                <input 
-                  type="file" 
-                  accept="image/jpeg, image/png, image/webp" 
-                  className="hidden" 
+                <input
+                  type="file"
+                  multiple // <--- Tambahkan kata ini
+                  accept="image/jpeg, image/png, image/webp"
+                  className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileUpload}
                 />
@@ -209,7 +221,7 @@ export default function NewProductPage() {
                     const newSizes = [...sizes];
                     newSizes[index].isAvailable = e.target.checked;
                     setSizes(newSizes);
-                  }} className="w-4 h-4 accent-black cursor-pointer"/>
+                  }} className="w-4 h-4 accent-black cursor-pointer" />
                 </label>
               </div>
             ))}

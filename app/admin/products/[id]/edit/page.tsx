@@ -39,7 +39,7 @@ export default function EditProductPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await fetch(`/api/admin/products/${productId}`);
+        const res = await fetch(`/api/admin/products/${productId}`, { cache: 'no-store' });
         if (!res.ok) throw new Error('Failed to fetch product data');
         const data = await res.json();
 
@@ -76,28 +76,47 @@ export default function EditProductPage() {
     fetchProduct();
   }, [productId]);
 
-  // Fungsi Upload Gambar ke Vercel Blob (Sama persis dengan New Product)
+  // Fungsi Upload Gambar ke Vercel Blob (Mendukung Multiple Upload)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (images.length >= 4) {
-      alert("Maximum 4 images allowed.");
+    // 1. Ambil semua file yang dipilih oleh user
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // 2. Validasi batas maksimal 4 gambar
+    if (images.length + files.length > 4) {
+      alert(`Maximum 4 images allowed. You can only add ${4 - images.length} more.`);
+      // Reset input agar user bisa memilih ulang
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     setIsUploading(true);
+
     try {
-      const response = await fetch(`/api/admin/upload?filename=${file.name}`, {
-        method: 'POST',
-        body: file,
+      // 3. Upload SEMUA file secara paralel
+      const uploadPromises = files.map(async (file) => {
+        const response = await fetch(`/api/admin/upload?filename=${file.name}`, {
+          method: 'POST',
+          body: file,
+        });
+
+        const newBlob = await response.json();
+        if (!response.ok) throw new Error(newBlob.error || 'Upload failed');
+
+        return newBlob.url;
       });
-      const newBlob = await response.json();
-      if (!response.ok) throw new Error(newBlob.error || 'Upload failed');
-      setImages((prev) => [...prev, newBlob.url]);
+
+      // Tunggu semua selesai diunggah
+      const uploadedUrls = await Promise.all(uploadPromises);
+
+      // 4. Gabungkan gambar lama dengan gambar yang baru di-upload
+      setImages((prev) => [...prev, ...uploadedUrls]);
+
     } catch (err: any) {
       setError(err.message);
     } finally {
       setIsUploading(false);
+      // Reset input file
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -231,7 +250,14 @@ export default function EditProductPage() {
             {images.length < 4 && (
               <div onClick={() => !isUploading && fileInputRef.current?.click()} className={`aspect-square border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-2 rounded-sm transition-colors ${isUploading ? 'bg-gray-100 cursor-wait' : 'hover:bg-gray-50 hover:border-black cursor-pointer'}`}>
                 {isUploading ? <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Uploading...</span> : <><span className="text-2xl text-gray-400">+</span><span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Add Image</span></>}
-                <input type="file" accept="image/jpeg, image/png, image/webp" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+                <input
+                  type="file"
+                  multiple
+                  accept="image/jpeg, image/png, image/webp"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                />
               </div>
             )}
           </div>

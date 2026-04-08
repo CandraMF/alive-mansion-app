@@ -13,6 +13,12 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '**.public.blob.vercel-storage.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'ur22gyfvyqbzzzqh.public.blob.vercel-storage.com', // Pastikan hostname ini tepat
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };
