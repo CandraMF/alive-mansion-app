@@ -9,32 +9,34 @@ export default async function ProductDetailPage({
 }) {
   const { id } = await params;
 
+  // 1. Ambil data produk utama
   const product = await prisma.product.findUnique({
     where: { id },
     include: {
       images: { orderBy: { position: 'asc' } },
-      variants: { orderBy: { size: 'asc' } },
+      variants: { orderBy: { size: 'asc' } }, // Ambil data ukuran
     },
   });
 
   if (!product) notFound();
 
-  // Ambil produk terkait (produk lain kecuali yang sedang dibuka)
+  // 2. Ambil 4 produk lain untuk "You May Also Like"
   const relatedProducts = await prisma.product.findMany({
     where: { 
       id: { not: id },
       status: 'PUBLISHED' 
     },
     take: 4,
-    include: { images: { orderBy: { position: 'asc' } } }
+    include: { 
+      images: { orderBy: { position: 'asc' } },
+      variants: true
+    }
   });
 
   return (
-    <main className="min-h-screen bg-white">
-      <ProductDetailClient 
-        product={product as any} 
-        relatedProducts={relatedProducts as any} 
-      />
-    </main>
+    <ProductDetailClient 
+      product={product as any} 
+      relatedProducts={relatedProducts as any} 
+    />
   );
 }

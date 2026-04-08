@@ -26,7 +26,7 @@ export default function ProductDetailClient({ product, relatedProducts }: any) {
   return (
     <>
       <section className="pt-24 md:pt-32 pb-16 px-6 md:px-12 max-w-[1600px] mx-auto flex flex-col md:flex-row gap-10 md:gap-16">
-        
+
         {/* KOLOM KIRI: GALERI */}
         <div className="w-full md:w-[60%] flex flex-col md:flex-row-reverse gap-4 md:gap-6 relative">
           <div className="aspect-square w-full relative bg-gray-50 flex-grow border border-gray-100">
@@ -82,10 +82,9 @@ export default function ProductDetailClient({ product, relatedProducts }: any) {
                     key={v.id}
                     onClick={() => v.isAvailable && setSelectedSize(v.size)}
                     disabled={!v.isAvailable}
-                    className={`py-3 flex flex-col items-center border transition-all ${
-                      !v.isAvailable ? 'bg-gray-50 text-gray-300' : 
-                      selectedSize === v.size ? 'bg-black text-white border-black' : 'hover:border-black'
-                    }`}
+                    className={`py-3 flex flex-col items-center border transition-all ${!v.isAvailable ? 'bg-gray-50 text-gray-300' :
+                        selectedSize === v.size ? 'bg-black text-white border-black' : 'hover:border-black'
+                      }`}
                   >
                     <span className="text-xs font-bold uppercase">{v.size}</span>
                     <span className="text-[8px] uppercase tracking-widest">{v.isAvailable ? 'Available' : 'Sold Out'}</span>
@@ -94,7 +93,7 @@ export default function ProductDetailClient({ product, relatedProducts }: any) {
               </div>
             </div>
 
-            <button 
+            <button
               className="w-full bg-black text-white py-4 text-xs font-bold tracking-widest hover:bg-gray-800 disabled:bg-gray-200 mb-10"
               disabled={!selectedSize}
               onClick={() => alert("Added to cart!")}
