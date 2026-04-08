@@ -62,7 +62,7 @@ export default async function AdminProductsPage() {
               )}
 
               {products.map((product) => {
-                const isAvailable = product.variants.some(v => v.stock > 0);
+                const isAvailable = product.variants.some(v => v.isAvailable);
                 const variantCount = product.variants.length;
 
                 return (

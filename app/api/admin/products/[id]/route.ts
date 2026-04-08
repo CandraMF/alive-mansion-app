@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// 1. GET: Ambil data spesifik
+// 1. GET: Ambil data spesifik (Ditambahkan pembatalan Cache)
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const product = await prisma.product.findUnique({
       where: { id: id },
       include: {
-        variants: { orderBy: { size: 'asc' } },
+        variants: true,
         images: { orderBy: { position: 'asc' } }
       }
     });
@@ -43,40 +43,36 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       }
     });
 
-    // B. Update Varian (Disesuaikan dengan kolom 'stock')
+    // B. Update Varian
     for (const sizeObj of sizes) {
       const existingVariant = await prisma.variant.findFirst({
         where: { productId: id, size: sizeObj.size }
       });
 
-      const stockValue = typeof sizeObj.stock !== 'undefined'
-        ? parseInt(sizeObj.stock, 10)
-        : (sizeObj.isAvailable ? 1 : 0);
-
       if (existingVariant) {
         await prisma.variant.update({
           where: { id: existingVariant.id },
-          data: { stock: stockValue }
+          data: { isAvailable: sizeObj.isAvailable }
         });
       } else {
         await prisma.variant.create({
           data: {
             productId: id,
             size: sizeObj.size,
-            stock: stockValue,
-            // TAMBAHKAN KOLOM COLOR DI BAWAH INI
-            color: sizeObj.color || "Black",
+            isAvailable: sizeObj.isAvailable,
             sku: `${name.replace(/\s+/g, '-').toUpperCase()}-${sizeObj.size}`
           }
         });
       }
     }
 
-    // C. Update Gambar ke Database
+    // C. INI BAGIAN YANG HILANG: Update Gambar ke Database
+    // Hapus semua relasi gambar lama
     await prisma.productImage.deleteMany({
       where: { productId: id }
     });
 
+    // Masukkan susunan gambar yang baru (termasuk yang baru di-upload)
     if (imageUrls && imageUrls.length > 0) {
       await prisma.productImage.createMany({
         data: imageUrls.map((url: string, index: number) => ({

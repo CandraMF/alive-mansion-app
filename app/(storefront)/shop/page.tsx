@@ -42,7 +42,7 @@ export default async function ShopPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-10 md:gap-x-8 md:gap-y-16">
         {products.map((product) => {
           // Cek apakah semua varian sold out
-          const isSoldOut = product.variants.length > 0 && !product.variants.some(v => v.stock > 0);
+          const isSoldOut = product.variants.length > 0 && !product.variants.some(v => v.isAvailable);
 
           return (
             <ProductCard

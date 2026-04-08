@@ -12,8 +12,8 @@ model Product {
   id          String         @id @default(cuid())
   name        String
   description String         @db.Text
-  price       Int            // Menggunakan Int untuk IDR (Rupiah)
-  status      String         @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  price       Int            
+  status      String         @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
   
   // Relasi
   variants    Variant[]
@@ -27,25 +27,23 @@ model Product {
 model ProductImage {
   id        String   @id @default(cuid())
   productId String
-  // Jika produk dihapus, gambar ikut terhapus (Cascade)
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   url       String
-  position  Int      @default(0) // Untuk mengatur urutan gambar utama dan slider
+  position  Int      @default(0) 
   
   createdAt DateTime @default(now())
 }
 
-// --- 3. TABEL VARIAN (UKURAN & WARNA) ---
+// --- 3. TABEL VARIAN (HANYA UKURAN & KETERSEDIAAN) ---
 model Variant {
   id          String      @id @default(cuid())
   productId   String
   product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  color       String?
-  size        String
-  stock       Int         @default(0)
-  sku         String      @unique // Stock Keeping Unit (Kode unik barang)
   
-  // Relasi ke pesanan
+  size        String      // Contoh: "S", "M", "L", "XL"
+  isAvailable Boolean     @default(true) // true = Available, false = Sold Out
+  sku         String?     @unique 
+  
   orderItems  OrderItem[]
   
   createdAt   DateTime    @default(now())
@@ -58,10 +56,9 @@ model Order {
   customerName  String
   customerEmail String
   totalAmount   Int
-  status        String      @default("PENDING") // PENDING, PAID, SHIPPED, COMPLETED, CANCELLED
-  xenditInvoice String?     // ID Invoice dari Xendit
+  status        String      @default("PENDING") 
+  xenditInvoice String?     
   
-  // Relasi
   items         OrderItem[]
   
   createdAt     DateTime    @default(now())
@@ -78,5 +75,5 @@ model OrderItem {
   variant   Variant  @relation(fields: [variantId], references: [id])
   
   quantity  Int
-  priceAt   Int      // Merekam harga saat barang dibeli (mencegah perubahan jika harga asli naik)
+  priceAt   Int      
 }
