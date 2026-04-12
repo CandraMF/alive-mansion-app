@@ -9,13 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
-type Category = {
-  id: string;
-  name: string;
-  slug: string;
-  parentId: string | null;
-  parent?: { name: string } | null;
-};
+import { Category } from '@/types';
 
 export default function MasterCategoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);

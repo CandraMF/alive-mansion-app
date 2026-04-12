@@ -6,13 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-// Tipe data untuk Color dari Prisma
-type Color = {
-  id: string;
-  name: string;
-  hexCodes: string[];
-};
+import { Color } from '@/types';
 
 export default function MasterColorPage() {
   const [colors, setColors] = useState<Color[]>([]);
