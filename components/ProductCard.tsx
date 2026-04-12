@@ -10,7 +10,10 @@ interface ProductCardProps {
     name: string;
     price: string;
     images: string[];
-    status: string; // 'available' atau 'sold_out'
+    status: string;
+    color?: string; // Contoh: 'BLACK'
+    colorsCount?: number;
+    colorHex?: string; // Tambah ini untuk kod warna (cth: '#000000')
   };
 }
 
@@ -23,9 +26,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     let autoPlayInterval: NodeJS.Timeout;
 
     if (isHovered && product.images.length > 1) {
-      // TAHAN selama 500ms
       holdTimeout = setTimeout(() => {
-        // PUTAR otomatis setiap 1200ms
         autoPlayInterval = setInterval(() => {
           setCurrentImgIndex((prev) => (prev + 1) % product.images.length);
         }, 1200);
@@ -45,13 +46,13 @@ export default function ProductCard({ product }: ProductCardProps) {
       href={`/shop/${product.id}`}
       className="group flex flex-col cursor-pointer"
       onMouseEnter={() => {
-        // Instan ganti ke gambar kedua saat kursor masuk
         if (product.images.length > 1) setCurrentImgIndex(1);
         setIsHovered(true);
       }}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="aspect-[3/4] md:aspect-square w-full relative bg-gray-50 overflow-hidden rounded-sm">
+      {/* Bingkai Imej dengan Rasio Konsisten */}
+      <div className="aspect-[1024/1537] w-full relative bg-gray-50 overflow-hidden">
         {product.images.length > 0 ? (
           product.images.map((imgUrl, idx) => (
             <Image
@@ -60,7 +61,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               alt={`${product.name} - View ${idx + 1}`}
               fill
               sizes="(max-width: 768px) 50vw, 25vw"
-              className={`object-cover object-center transition-opacity duration-300 ease-in-out ${currentImgIndex === idx ? 'opacity-100' : 'opacity-0'
+              className={`object-cover object-center ${currentImgIndex === idx ? 'opacity-100' : 'opacity-0'
                 }`}
               priority={idx < 2}
             />
@@ -70,28 +71,26 @@ export default function ProductCard({ product }: ProductCardProps) {
             No Image
           </div>
         )}
-
-        {/* Status Label (Sold Out / View Detail) */}
-        <div className="absolute bottom-0 left-0 w-full translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out flex z-10">
-          {product.status === 'sold_out' ? (
-            <div className="w-full bg-gray-200 text-gray-500 text-center py-3 text-[10px] md:text-xs font-bold tracking-widest uppercase">
-              Sold Out
-            </div>
-          ) : (
-            <div className="w-full bg-white text-black text-center py-3 text-[10px] md:text-xs font-bold tracking-widest uppercase border-t border-gray-200 hover:bg-black hover:text-white transition-colors">
-              View Detail
-            </div>
-          )}
-        </div>
       </div>
 
-      <div className="mt-4 text-left">
-        <h3 className="text-[11px] md:text-xs font-bold text-black uppercase tracking-[0.15em] mb-1 line-clamp-1">
-          {product.name}
+      {/* Bahagian Teks & Warna (Dipusatkan) */}
+      <div className="mt-5 text-center flex flex-col items-center">
+
+
+        {/* Nama Produk / Warna */}
+        <h3 className="text-[10px] md:text-[11px] font-bold text-black uppercase tracking-[0.2em] mb-1.5 line-clamp-1">
+          {isHovered ? (product.color || 'BLACK') : product.name}
         </h3>
-        <p className="text-[11px] md:text-xs font-medium text-gray-500">
-          {product.price}
-        </p>
+        {/* Elemen Warna Bulat - Muncul Hanya Saat Hover */}
+        <div
+          className={`mb-3 transition-all duration-500 ease-in-out ${isHovered ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-2 pointer-events-none'
+            }`}
+        >
+          <div
+            className="w-3 h-3 rounded-full border border-gray-200 shadow-sm"
+            style={{ backgroundColor: product.colorHex || 'black' }} // Menggunakan colorHex jika ada
+          />
+        </div>
       </div>
     </Link>
   );
