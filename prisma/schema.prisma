@@ -7,13 +7,69 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- 1. TABEL PRODUK ---
+// ==========================================
+// A. MASTER DATA (KATEGORI, WARNA, UKURAN)
+// ==========================================
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String     // Contoh: "Men", "Outerwear"
+  slug      String     @unique // Contoh: "men", "outerwear" (untuk URL)
+  
+  // Nested / Self-Relation untuk sub-kategori
+  parentId  String?    
+  parent    Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  children  Category[] @relation("SubCategories")
+  
+  products  Product[]  
+  
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Color {
+  id        String    @id @default(cuid())
+  name      String    // Contoh: "Black", "Red / White"
+  
+  // Fitur Array dari PostgreSQL: Bisa menyimpan banyak warna!
+  // Jika "Red / White", isinya: ["#FF0000", "#FFFFFF"]
+  hexCodes  String[]  
+  
+  variants  Variant[] 
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Size {
+  id        String    @id @default(cuid())
+  name      String    // Contoh: "S", "M", "OS"
+  
+  // sortOrder digunakan agar dropdown terurut benar (bukan abjad)
+  // Contoh: S = 1, M = 2, L = 3, OS = 99
+  sortOrder Int       @default(0)
+  
+  variants  Variant[] 
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+
+// ==========================================
+// B. TRANSAKSI & KATALOG (PRODUK, VARIAN)
+// ==========================================
+
 model Product {
   id          String         @id @default(cuid())
   name        String
   description String         @db.Text
   price       Int            
   status      String         @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
+  
+  // Relasi Kategori (Opsional, bisa saja produk belum punya kategori)
+  categoryId  String?
+  category    Category?      @relation(fields: [categoryId], references: [id])
   
   // Relasi
   variants    Variant[]
@@ -23,25 +79,36 @@ model Product {
   updatedAt   DateTime       @updatedAt
 }
 
-// --- 2. TABEL GAMBAR PRODUK ---
+// --- TABEL GAMBAR PRODUK ---
 model ProductImage {
   id        String   @id @default(cuid())
   productId String
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   url       String
+  
+  // Menentukan jenis gambar (Contoh: "MAIN", "WITH_MODEL", "DETAIL")
+  category  String   @default("MAIN") 
+  
+  // Tetap pertahankan position untuk urutan tampilan di galeri
   position  Int      @default(0) 
   
   createdAt DateTime @default(now())
 }
 
-// --- 3. TABEL VARIAN (HANYA UKURAN & KETERSEDIAAN) ---
 model Variant {
   id          String      @id @default(cuid())
   productId   String
   product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   
-  size        String      // Contoh: "S", "M", "L", "XL"
-  isAvailable Boolean     @default(true) // true = Available, false = Sold Out
+  // Relasi ke Master Size & Color
+  sizeId      String
+  size        Size        @relation(fields: [sizeId], references: [id], onDelete: Restrict)
+  
+  colorId     String
+  color       Color       @relation(fields: [colorId], references: [id], onDelete: Restrict)
+  
+  // Menggunakan stock (angka) jauh lebih aman untuk e-commerce
+  stock       Int         @default(0) 
   sku         String?     @unique 
   
   orderItems  OrderItem[]
@@ -50,7 +117,10 @@ model Variant {
   updatedAt   DateTime    @updatedAt
 }
 
-// --- 4. TABEL PESANAN (ORDER) ---
+// ==========================================
+// C. PESANAN (ORDER)
+// ==========================================
+
 model Order {
   id            String      @id @default(cuid())
   customerName  String
@@ -65,7 +135,6 @@ model Order {
   updatedAt     DateTime    @updatedAt
 }
 
-// --- 5. TABEL DETAIL BARANG DALAM PESANAN ---
 model OrderItem {
   id        String   @id @default(cuid())
   orderId   String
@@ -75,5 +144,5 @@ model OrderItem {
   variant   Variant  @relation(fields: [variantId], references: [id])
   
   quantity  Int
-  priceAt   Int      
+  priceAt   Int      // Mencatat harga saat barang dibeli
 }
