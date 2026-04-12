@@ -1,3 +1,20 @@
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
 export default function AdminOverview() {
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-8">
@@ -13,88 +30,105 @@ export default function AdminOverview() {
       {/* STATS CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
 
-        <div className="bg-white border border-gray-200 p-6 rounded-md shadow-sm">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">Total Revenue</h3>
-          <p className="text-2xl font-black">IDR 4.250.000</p>
-          <p className="text-[10px] font-bold text-green-600 mt-2">+12% from yesterday</p>
-        </div>
+        <Card className="shadow-sm rounded-md border-gray-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+              Total Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-black">IDR 4.250.000</div>
+            <p className="text-[10px] font-bold text-green-600 mt-2">+12% from yesterday</p>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white border border-gray-200 p-6 rounded-md shadow-sm">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">Orders to Ship</h3>
-          <p className="text-2xl font-black">8</p>
-          <p className="text-[10px] font-bold text-orange-600 mt-2">Requires immediate action</p>
-        </div>
+        <Card className="shadow-sm rounded-md border-gray-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+              Orders to Ship
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-black">8</div>
+            <p className="text-[10px] font-bold text-orange-600 mt-2">Requires immediate action</p>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white border border-gray-200 p-6 rounded-md shadow-sm">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">Active Products</h3>
-          <p className="text-2xl font-black">24</p>
-          <p className="text-[10px] font-bold text-gray-400 mt-2">2 items out of stock</p>
-        </div>
+        <Card className="shadow-sm rounded-md border-gray-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+              Active Products
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-black">24</div>
+            <p className="text-[10px] font-bold text-gray-400 mt-2">2 items out of stock</p>
+          </CardContent>
+        </Card>
 
       </div>
 
       {/* RECENT ORDERS TABLE */}
-      <div className="bg-white border border-gray-200 rounded-md shadow-sm overflow-hidden mt-4">
+      <Card className="shadow-sm rounded-md border-gray-200 overflow-hidden mt-4">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h3 className="text-xs font-bold uppercase tracking-widest">Recent Orders</h3>
-          <button className="text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-black">
+          <Button variant="ghost" size="sm" className="text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-black">
             View All
-          </button>
+          </Button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-gray-50 text-gray-500 uppercase tracking-widest border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 font-bold">Order ID</th>
-                <th className="px-6 py-3 font-bold">Customer</th>
-                <th className="px-6 py-3 font-bold">Date</th>
-                <th className="px-6 py-3 font-bold">Total</th>
-                <th className="px-6 py-3 font-bold">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {/* Dummy Order 1 */}
-              <tr className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 font-bold">#ALV-001</td>
-                <td className="px-6 py-4">Budi Santoso</td>
-                <td className="px-6 py-4 text-gray-500">Today, 14:30</td>
-                <td className="px-6 py-4 font-bold">IDR 850.000</td>
-                <td className="px-6 py-4">
-                  <span className="bg-orange-100 text-orange-800 px-2.5 py-1 rounded-sm text-[9px] font-bold uppercase tracking-widest">
-                    Pending
-                  </span>
-                </td>
-              </tr>
-              {/* Dummy Order 2 */}
-              <tr className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 font-bold">#ALV-002</td>
-                <td className="px-6 py-4">Andi Wijaya</td>
-                <td className="px-6 py-4 text-gray-500">Yesterday, 09:15</td>
-                <td className="px-6 py-4 font-bold">IDR 450.000</td>
-                <td className="px-6 py-4">
-                  <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-sm text-[9px] font-bold uppercase tracking-widest">
-                    Paid
-                  </span>
-                </td>
-              </tr>
-              {/* Dummy Order 3 */}
-              <tr className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 font-bold">#ALV-003</td>
-                <td className="px-6 py-4">Siti Aminah</td>
-                <td className="px-6 py-4 text-gray-500">Mon, 11 Oct</td>
-                <td className="px-6 py-4 font-bold">IDR 1.200.000</td>
-                <td className="px-6 py-4">
-                  <span className="bg-gray-200 text-gray-600 px-2.5 py-1 rounded-sm text-[9px] font-bold uppercase tracking-widest">
-                    Shipped
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+        <Table>
+          <TableHeader className="bg-gray-50">
+            <TableRow>
+              <TableHead className="text-xs font-bold text-gray-500 uppercase tracking-widest h-12">Order ID</TableHead>
+              <TableHead className="text-xs font-bold text-gray-500 uppercase tracking-widest h-12">Customer</TableHead>
+              <TableHead className="text-xs font-bold text-gray-500 uppercase tracking-widest h-12">Date</TableHead>
+              <TableHead className="text-xs font-bold text-gray-500 uppercase tracking-widest h-12">Total</TableHead>
+              <TableHead className="text-xs font-bold text-gray-500 uppercase tracking-widest h-12">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {/* Dummy Order 1 */}
+            <TableRow className="hover:bg-gray-50 transition-colors">
+              <TableCell className="font-bold text-xs py-4">#ALV-001</TableCell>
+              <TableCell className="text-xs py-4">Budi Santoso</TableCell>
+              <TableCell className="text-gray-500 text-xs py-4">Today, 14:30</TableCell>
+              <TableCell className="font-bold text-xs py-4">IDR 850.000</TableCell>
+              <TableCell className="py-4">
+                <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-100 rounded-sm text-[9px] font-bold uppercase tracking-widest">
+                  Pending
+                </Badge>
+              </TableCell>
+            </TableRow>
 
+            {/* Dummy Order 2 */}
+            <TableRow className="hover:bg-gray-50 transition-colors">
+              <TableCell className="font-bold text-xs py-4">#ALV-002</TableCell>
+              <TableCell className="text-xs py-4">Andi Wijaya</TableCell>
+              <TableCell className="text-gray-500 text-xs py-4">Yesterday, 09:15</TableCell>
+              <TableCell className="font-bold text-xs py-4">IDR 450.000</TableCell>
+              <TableCell className="py-4">
+                <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100 rounded-sm text-[9px] font-bold uppercase tracking-widest">
+                  Paid
+                </Badge>
+              </TableCell>
+            </TableRow>
+
+            {/* Dummy Order 3 */}
+            <TableRow className="hover:bg-gray-50 transition-colors">
+              <TableCell className="font-bold text-xs py-4">#ALV-003</TableCell>
+              <TableCell className="text-xs py-4">Siti Aminah</TableCell>
+              <TableCell className="text-gray-500 text-xs py-4">Mon, 11 Oct</TableCell>
+              <TableCell className="font-bold text-xs py-4">IDR 1.200.000</TableCell>
+              <TableCell className="py-4">
+                <Badge variant="secondary" className="bg-gray-200 text-gray-600 hover:bg-gray-200 rounded-sm text-[9px] font-bold uppercase tracking-widest">
+                  Shipped
+                </Badge>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }
