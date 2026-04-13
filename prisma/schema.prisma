@@ -36,6 +36,8 @@ model Color {
   hexCodes  String[]  
   
   variants  Variant[] 
+
+  images    ProductImage[]
   
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -64,7 +66,6 @@ model Product {
   id          String         @id @default(cuid())
   name        String
   description String         @db.Text
-  price       Int            
   status      String         @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
   
   // Relasi Kategori (Opsional, bisa saja produk belum punya kategori)
@@ -84,6 +85,10 @@ model ProductImage {
   id        String   @id @default(cuid())
   productId String
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  colorId   String?  
+  color     Color?   @relation(fields: [colorId], references: [id], onDelete: SetNull)
+
   url       String
   
   // Menentukan jenis gambar (Contoh: "MAIN", "WITH_MODEL", "DETAIL")
@@ -106,9 +111,12 @@ model Variant {
   
   colorId     String
   color       Color       @relation(fields: [colorId], references: [id], onDelete: Restrict)
+
+  isMain      Boolean     @default(false)
   
   // Menggunakan stock (angka) jauh lebih aman untuk e-commerce
   stock       Int         @default(0) 
+  price       Int         @default(0)
   sku         String?     @unique 
   
   orderItems  OrderItem[]

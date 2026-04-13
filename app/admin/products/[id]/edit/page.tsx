@@ -4,291 +4,496 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { 
+  ChevronLeft, UploadCloud, X, Info, Layers, ImageIcon, 
+  Eye, GripVertical, Maximize2, Palette, Star, Loader2, Save
+} from 'lucide-react';
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+
+import { Category, Color, Size } from '@/types';
+import { cn } from '@/lib/utils';
+
+type ProductImageData = { id: string; url: string; colorId: string; category: string; position: number };
 
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const productId = params.id as string;
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [isFetching, setIsFetching] = useState(true);
+  // --- MASTER DATA & LOADING STATE ---
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [masterColors, setMasterColors] = useState<Color[]>([]);
+  const [masterSizes, setMasterSizes] = useState<Size[]>([]);
+  
+  const [isFetchingMasters, setIsFetchingMasters] = useState(true);
+  const [isDataLoaded, setIsDataLoaded] = useState(false); // Flag agar efek auto-kombinasi tidak menimpa data awal
   const [isLoading, setIsLoading] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // State Formulir Dasar
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    status: 'PUBLISHED',
-  });
+  // --- FORM STATE ---
+  const [formData, setFormData] = useState({ name: '', description: '', status: 'PUBLISHED', categoryId: '' });
 
-  const [sizes, setSizes] = useState([
-    { size: 'S', isAvailable: false },
-    { size: 'M', isAvailable: false },
-    { size: 'L', isAvailable: false },
-    { size: 'XL', isAvailable: false },
-  ]);
+  // --- VARIANTS & MATRIX ---
+  const [selectedColorIds, setSelectedColorIds] = useState<string[]>([]);
+  const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>([]);
+  type ActiveVariant = { key: string, colorId: string, sizeId: string };
+  const [activeVariants, setActiveVariants] = useState<ActiveVariant[]>([]);
+  const [variantMatrix, setVariantMatrix] = useState<Record<string, { stock: string; price: string }>>({});
+  const [mainVariantKey, setMainVariantKey] = useState<string>('');
 
-  const [images, setImages] = useState<string[]>([]);
+  const dragVariantIdx = useRef<number | null>(null);
+  const dragOverVariantIdx = useRef<number | null>(null);
+
+  // --- MEDIA KANBAN & LIGHTBOX ---
+  const [images, setImages] = useState<ProductImageData[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // 1. Ambil Data Produk Lama saat halaman pertama kali dimuat
+  // ==========================================
+  // 1. FETCH MASTER DATA & PRODUCT DETAIL
+  // ==========================================
   useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const res = await fetch(`/api/admin/products/${productId}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Failed to fetch product data');
-        const data = await res.json();
+    if (!productId) return;
 
-        // Isi form dengan data dari database
+    const loadData = async () => {
+      try {
+        // Ambil Data Master & Detail Produk secara paralel
+        const [catsRes, colsRes, szsRes, prodRes] = await Promise.all([
+          fetch('/api/categories'),
+          fetch('/api/colors'),
+          fetch('/api/sizes'),
+          fetch(`/api/admin/products/${productId}`)
+        ]);
+
+        const cats = await catsRes.json();
+        const cols = await colsRes.json();
+        const szs = await szsRes.json();
+        const product = await prodRes.json();
+
+        if (!prodRes.ok) throw new Error(product.error || "Gagal memuat produk");
+
+        setCategories(cats); setMasterColors(cols); setMasterSizes(szs);
+
+        // HYDRATION: Masukkan data produk ke dalam state UI
         setFormData({
-          name: data.name,
-          description: data.description || '',
-          price: data.price.toString(),
-          status: data.status,
+          name: product.name || '',
+          description: product.description || '',
+          status: product.status || 'PUBLISHED',
+          categoryId: product.categoryId || ''
         });
 
-        // Cocokkan ukuran dari database ke form state kita
-        if (data.variants) {
-          setSizes((prevSizes) =>
-            prevSizes.map(defaultSize => {
-              const dbVariant = data.variants.find((v: any) => v.size === defaultSize.size);
-              return dbVariant ? { ...defaultSize, isAvailable: dbVariant.isAvailable } : defaultSize;
-            })
-          );
+        // Map Varian
+        if (product.variants && product.variants.length > 0) {
+          const colors = Array.from(new Set(product.variants.map((v: any) => v.colorId))) as string[];
+          const sizes = Array.from(new Set(product.variants.map((v: any) => v.sizeId))) as string[];
+          setSelectedColorIds(colors);
+          setSelectedSizeIds(sizes);
+
+          const newMatrix: Record<string, any> = {};
+          const newActiveVariants: ActiveVariant[] = [];
+          let mainKey = '';
+
+          product.variants.forEach((v: any) => {
+            const key = `${v.colorId}_${v.sizeId}`;
+            newMatrix[key] = { stock: v.stock.toString(), price: v.price.toString() };
+            newActiveVariants.push({ key, colorId: v.colorId, sizeId: v.sizeId });
+            if (v.isMain) mainKey = key;
+          });
+
+          setVariantMatrix(newMatrix);
+          setActiveVariants(newActiveVariants);
+          if (mainKey) setMainVariantKey(mainKey);
         }
 
-        // Ekstrak URL gambar
-        if (data.images) {
-          setImages(data.images.map((img: any) => img.url));
+        // Map Gambar
+        if (product.images && product.images.length > 0) {
+          setImages(product.images.map((img: any) => ({
+            id: img.id,
+            url: img.url,
+            colorId: img.colorId || '',
+            category: img.category || 'MAIN',
+            position: img.position
+          })));
         }
 
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setIsFetching(false);
+      } catch (err: any) { 
+        setError(err.message || "Gagal memuat data ruang kerja."); 
+      } finally { 
+        setIsFetchingMasters(false); 
+        // Beri sedikit jeda sebelum mengaktifkan auto-kombinasi agar render stabil
+        setTimeout(() => setIsDataLoaded(true), 100); 
       }
     };
-
-    fetchProduct();
+    loadData();
   }, [productId]);
 
-  // Fungsi Upload Gambar ke Vercel Blob (Mendukung Multiple Upload)
+  // ==========================================
+  // 2. LOGIKA VARIAN & MATRIX OTOMATIS
+  // ==========================================
+  useEffect(() => {
+    // PENTING: Jangan jalankan saat proses muat awal dari Database agar data tidak tertimpa
+    if (!isDataLoaded) return; 
+
+    const theoreticalCombinations: ActiveVariant[] = [];
+    selectedColorIds.forEach(cId => {
+      selectedSizeIds.forEach(sId => theoreticalCombinations.push({ key: `${cId}_${sId}`, colorId: cId, sizeId: sId }));
+    });
+
+    let newActiveVariants = activeVariants.filter(v => selectedColorIds.includes(v.colorId) && selectedSizeIds.includes(v.sizeId));
+    theoreticalCombinations.forEach(tc => {
+      if (!newActiveVariants.find(v => v.key === tc.key)) newActiveVariants.push(tc);
+    });
+
+    setActiveVariants(newActiveVariants);
+
+    if (newActiveVariants.length > 0) {
+      if (!newActiveVariants.find(v => v.key === mainVariantKey)) {
+        setMainVariantKey(newActiveVariants[0].key);
+      }
+    } else {
+      setMainVariantKey('');
+    }
+  }, [selectedColorIds, selectedSizeIds, isDataLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleColor = (id: string) => setSelectedColorIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  const toggleSize = (id: string) => setSelectedSizeIds(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+  const handleMatrixChange = (key: string, field: 'stock' | 'price', value: string) => setVariantMatrix(prev => ({ ...prev, [key]: { ...(prev[key] || { stock: '', price: '' }), [field]: value } }));
+
+  const handleVariantDragEnd = () => {
+    if (dragVariantIdx.current === null || dragOverVariantIdx.current === null) return;
+    const newVariants = [...activeVariants];
+    const draggedItem = newVariants.splice(dragVariantIdx.current, 1)[0];
+    newVariants.splice(dragOverVariantIdx.current, 0, draggedItem);
+    setActiveVariants(newVariants);
+    dragVariantIdx.current = null; dragOverVariantIdx.current = null;
+  };
+
+  // ==========================================
+  // 3. MEDIA KANBAN LOGIC
+  // ==========================================
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    // 1. Ambil semua file yang dipilih oleh user
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-
-    // 2. Validasi batas maksimal 4 gambar
-    if (images.length + files.length > 4) {
-      alert(`Maximum 4 images allowed. You can only add ${4 - images.length} more.`);
-      // Reset input agar user bisa memilih ulang
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
     setIsUploading(true);
-
     try {
-      // 3. Upload SEMUA file secara paralel
       const uploadPromises = files.map(async (file) => {
-        const response = await fetch(`/api/admin/upload?filename=${file.name}`, {
-          method: 'POST',
-          body: file,
-        });
-
+        const response = await fetch(`/api/admin/upload?filename=${file.name}`, { method: 'POST', body: file });
         const newBlob = await response.json();
         if (!response.ok) throw new Error(newBlob.error || 'Upload failed');
-
         return newBlob.url;
       });
-
-      // Tunggu semua selesai diunggah
       const uploadedUrls = await Promise.all(uploadPromises);
-
-      // 4. Gabungkan gambar lama dengan gambar yang baru di-upload
-      setImages((prev) => [...prev, ...uploadedUrls]);
-
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsUploading(false);
-      // Reset input file
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+      const newImages = uploadedUrls.map(url => ({ id: Math.random().toString(36).substring(7), url, colorId: '', category: 'MAIN', position: 0 }));
+      setImages(prev => [...prev, ...newImages]);
+    } catch (err: any) { setError(err.message); }
+    finally { setIsUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
   };
 
-  const removeImage = (indexToRemove: number) => {
-    setImages(images.filter((_, index) => index !== indexToRemove));
+  const handleImageDragStart = (e: React.DragEvent, imageId: string) => e.dataTransfer.setData('imageId', imageId);
+  const handleImageDrop = (e: React.DragEvent, targetColorId: string, targetImageId: string | null = null) => {
+    e.preventDefault();
+    const sourceId = e.dataTransfer.getData('imageId');
+    if (!sourceId) return;
+
+    setImages(prev => {
+      const newImages = [...prev];
+      const sourceIndex = newImages.findIndex(img => img.id === sourceId);
+      if (sourceIndex === -1) return prev;
+
+      const [draggedImg] = newImages.splice(sourceIndex, 1);
+      draggedImg.colorId = targetColorId;
+
+      if (targetImageId) {
+        const targetIndex = newImages.findIndex(img => img.id === targetImageId);
+        newImages.splice(targetIndex, 0, draggedImg);
+      } else {
+        newImages.push(draggedImg);
+      }
+      return newImages;
+    });
   };
 
-  // 2. Fungsi Submit (PUT)
+  const updateImageCategory = (id: string, category: string) => setImages(prev => prev.map(img => img.id === id ? { ...img, category } : img));
+  const removeImage = (id: string) => setImages(prev => prev.filter(img => img.id !== id));
+
+  // ==========================================
+  // 4. SUBMIT (UPDATE KE DATABASE)
+  // ==========================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (images.length === 0) {
-      setError("Please upload at least 1 image.");
-      return;
-    }
+    if (images.length === 0) return setError("Unggah setidaknya satu gambar.");
+    if (activeVariants.length === 0) return setError("Pilih setidaknya satu kombinasi warna dan ukuran.");
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true); setError(null);
+
+    const variantsPayload = activeVariants.map(v => ({
+      colorId: v.colorId, sizeId: v.sizeId,
+      stock: variantMatrix[v.key]?.stock || 0, price: variantMatrix[v.key]?.price || 0,
+      isMain: v.key === mainVariantKey 
+    }));
 
     try {
+      // PENTING: Menggunakan metode PUT untuk Update Data
       const response = await fetch(`/api/admin/products/${productId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          sizes,
-          imageUrls: images,
-        }),
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, variants: variantsPayload, images: images.map((img, idx) => ({ ...img, position: idx })) }),
       });
-
-      if (!response.ok) throw new Error('Failed to update product');
-
-      router.push('/admin/products');
-      router.refresh();
-    } catch (err: any) {
-      setError(err.message);
-      setIsLoading(false);
-    }
+      if (!response.ok) throw new Error((await response.json()).error || 'Gagal menyimpan pembaruan');
+      
+      router.push('/admin/products'); router.refresh();
+    } catch (err: any) { setError(err.message); setIsLoading(false); }
   };
 
-  // 3. Fungsi Delete
-  const handleDelete = async () => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this product? This action cannot be undone.");
-    if (!confirmDelete) return;
+  if (isFetchingMasters) return (
+    <div className="h-[60vh] flex flex-col items-center justify-center gap-4 text-gray-500">
+      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <p className="text-sm font-medium tracking-widest uppercase">Memuat Data Produk...</p>
+    </div>
+  );
 
-    setIsDeleting(true);
-    try {
-      const response = await fetch(`/api/admin/products/${productId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('Failed to delete product');
-
-      router.push('/admin/products');
-      router.refresh();
-    } catch (err: any) {
-      setError(err.message);
-      setIsDeleting(false);
-    }
+  // Render Kanban Column
+  const renderMediaColumn = (colorId: string, title: string, hexCodes: string[] | null) => {
+    const columnImages = images.filter(img => img.colorId === colorId);
+    return (
+      <div key={colorId} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleImageDrop(e, colorId)} className="min-w-[320px] w-[320px] bg-gray-50/50 rounded-xl border border-gray-200 flex flex-col max-h-[600px] shrink-0">
+        <div className="p-4 border-b border-gray-200 bg-white/50 backdrop-blur rounded-t-xl flex items-center justify-between sticky top-0 z-10">
+          <div className="flex items-center gap-2">
+            {hexCodes ? (
+              <div className="w-4 h-4 rounded-full border shadow-sm" style={{ background: hexCodes.length === 1 ? hexCodes[0] : `linear-gradient(to right, ${hexCodes[0]} 50%, ${hexCodes[1]} 50%)` }} />
+            ) : <Palette className="w-4 h-4 text-gray-400" />}
+            <h3 className="font-bold text-sm text-gray-900">{title}</h3>
+          </div>
+          <span className="text-[10px] font-bold bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{columnImages.length}</span>
+        </div>
+        <div className="p-3 flex-1 overflow-y-auto space-y-3 min-h-[150px]">
+          {columnImages.length === 0 && <div className="h-full min-h-[100px] border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-xs text-gray-400 font-medium">Drag gambar ke sini</div>}
+          {columnImages.map((img) => (
+            <div key={img.id} draggable onDragStart={(e) => handleImageDragStart(e, img.id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.stopPropagation(); handleImageDrop(e, colorId, img.id); }} className="group flex gap-3 p-2 border border-gray-200 bg-white rounded-lg shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing relative">
+              <div className="relative w-20 h-28 shrink-0 bg-gray-100 rounded-md overflow-hidden border border-gray-100 group">
+                <Image src={img.url} alt="Media" fill className="object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 backdrop-blur-[1px]">
+                  <button type="button" onClick={() => setPreviewImage(img.url)} className="bg-white text-black p-1.5 rounded-full hover:scale-110 transition-transform"><Maximize2 className="w-3 h-3" /></button>
+                  <button type="button" onClick={() => removeImage(img.id)} className="bg-red-500 text-white p-1.5 rounded-full hover:scale-110 transition-transform"><X className="w-3 h-3" /></button>
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col justify-center gap-2">
+                <div className="flex items-center gap-1 text-gray-400 mb-1"><GripVertical className="w-3 h-3" /><span className="text-[9px] uppercase tracking-widest font-bold">Drag to Move</span></div>
+                <Label className="text-[10px] text-gray-500 font-semibold">Kategori Foto</Label>
+                <Select value={img.category} onValueChange={(val) => updateImageCategory(img.id, val)}>
+                  <SelectTrigger className="h-8 text-xs font-medium"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="MAIN">Main Shot</SelectItem><SelectItem value="WITH_MODEL">With Model</SelectItem><SelectItem value="DETAIL">Detail Shot</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
-  if (isFetching) {
-    return <div className="p-8 text-center text-sm font-bold uppercase tracking-widest text-gray-500">Loading Product Data...</div>;
-  }
+  const mainVariantData = activeVariants.find(v => v.key === mainVariantKey);
+  const mainColorIdForPreview = mainVariantData?.colorId || '';
+  const mainColorImages = images.filter(img => img.colorId === mainColorIdForPreview);
+  const previewCoverImage = mainColorImages.length > 0 ? mainColorImages[0].url : (images.length > 0 ? images[0].url : null);
+  const previewPrice = variantMatrix[mainVariantKey]?.price || '0';
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-8 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
-        <div className="flex items-center gap-4">
-          <Link href="/admin/products" className="text-gray-400 hover:text-black">&lt; Back</Link>
-          <h1 className="text-2xl font-black uppercase tracking-tight">Edit Product</h1>
+    <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-8 pb-24 px-4 sm:px-6 lg:px-8">
+
+      {/* --- HEADER --- */}
+      <div className="flex items-center justify-between sticky top-16 bg-white/90 backdrop-blur-md z-30 py-4 border-b border-gray-100">
+        <div className="flex flex-col gap-1">
+          <Link href="/admin/products" className="flex items-center text-sm text-gray-500 hover:text-black mb-1"><ChevronLeft className="w-4 h-4 mr-1" /> Kembali</Link>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Edit Product</h1>
         </div>
-        <button
-          onClick={handleDelete}
-          disabled={isDeleting}
-          className="text-xs font-bold uppercase tracking-widest text-red-500 hover:text-red-700 bg-red-50 px-4 py-2 rounded-sm disabled:opacity-50"
-        >
-          {isDeleting ? 'Deleting...' : 'Delete Product'}
-        </button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" type="button" onClick={() => router.push('/admin/products')}>Batal</Button>
+          <Button onClick={handleSubmit} disabled={isLoading || isUploading || !isDataLoaded} className="bg-blue-600 hover:bg-blue-700 text-white shadow-md">
+            {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/> Menyimpan...</> : <><Save className="w-4 h-4 mr-2"/> Simpan Perubahan</>}
+          </Button>
+        </div>
       </div>
 
-      {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md text-sm font-medium border border-red-200">
-          Error: {error}
+      {error && <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
+
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
+
+        {/* KOLOM KIRI (INFO & MATRIX) */}
+        <div className="xl:col-span-3 flex flex-col gap-8">
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader><CardTitle className="text-lg">Info Umum</CardTitle></CardHeader><Separator />
+            <CardContent className="pt-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2"><Label>Nama Produk</Label><Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
+                <div className="space-y-2">
+                  <Label>Kategori</Label>
+                  <Select value={formData.categoryId} onValueChange={(val) => setFormData({ ...formData, categoryId: val })}>
+                    <SelectTrigger><SelectValue placeholder="Pilih Kategori" /></SelectTrigger>
+                    <SelectContent>
+                      {categories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.parent ? <span className="text-gray-400 mr-1">{cat.parent.name} &gt;</span> : null}<span className={cat.parent ? "font-normal" : "font-bold"}>{cat.name}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2"><Label>Deskripsi</Label><Textarea rows={4} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader><CardTitle className="text-lg">Varian & Harga Spesifik</CardTitle></CardHeader><Separator />
+            <CardContent className="pt-6 space-y-8">
+              <div className="space-y-3"><Label className="text-xs uppercase">Pilih Warna</Label>
+                <div className="flex flex-wrap gap-3">
+                  {masterColors.map(color => (
+                    <div key={color.id} className={cn("flex items-center space-x-2 border px-3 py-2 rounded-md transition-colors", selectedColorIds.includes(color.id) && "bg-gray-50 border-gray-900")}>
+                      <Checkbox id={`col-${color.id}`} checked={selectedColorIds.includes(color.id)} onCheckedChange={() => toggleColor(color.id)} />
+                      <label htmlFor={`col-${color.id}`} className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                        <div className="w-4 h-4 rounded-full border" style={{ background: color.hexCodes.length === 1 ? color.hexCodes[0] : `linear-gradient(to right, ${color.hexCodes[0]} 50%, ${color.hexCodes[1] || 'transparent'} 50%)` }} />
+                        {color.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3"><Label className="text-xs uppercase">Pilih Ukuran</Label>
+                <div className="flex flex-wrap gap-3">
+                  {masterSizes.map(size => (
+                    <div key={size.id} className={cn("flex items-center space-x-2 border px-3 py-2 rounded-md transition-colors", selectedSizeIds.includes(size.id) && "bg-gray-50 border-gray-900")}>
+                      <Checkbox id={`sz-${size.id}`} checked={selectedSizeIds.includes(size.id)} onCheckedChange={() => toggleSize(size.id)} />
+                      <label htmlFor={`sz-${size.id}`} className="text-sm font-medium cursor-pointer">{size.name}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {activeVariants.length > 0 && (
+                <div className="rounded-md border overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-gray-50">
+                      <TableRow>
+                        <TableHead className="w-10"></TableHead>
+                        <TableHead className="text-xs uppercase text-center w-24">Utama <Star className="w-3 h-3 inline-block ml-1 text-yellow-500" /></TableHead>
+                        <TableHead className="text-xs uppercase">Kombinasi</TableHead>
+                        <TableHead className="text-xs uppercase w-32">Stok</TableHead>
+                        <TableHead className="text-xs uppercase w-48">Harga (IDR)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activeVariants.map((variant, index) => {
+                        const color = masterColors.find(c => c.id === variant.colorId); const size = masterSizes.find(s => s.id === variant.sizeId);
+                        const isMain = variant.key === mainVariantKey;
+                        return (
+                          <TableRow key={variant.key} draggable onDragStart={() => { dragVariantIdx.current = index }} onDragEnter={() => { dragOverVariantIdx.current = index }} onDragEnd={handleVariantDragEnd} onDragOver={(e) => e.preventDefault()} className={cn("bg-white hover:bg-gray-50 transition-colors", isMain && "bg-yellow-50/30 hover:bg-yellow-50/50")}>
+                            <TableCell className="cursor-grab active:cursor-grabbing text-gray-300"><GripVertical className="w-4 h-4" /></TableCell>
+                            <TableCell className="text-center">
+                              <input
+                                type="radio"
+                                name="mainVariant"
+                                checked={isMain}
+                                onChange={() => setMainVariantKey(variant.key)}
+                                className="w-4 h-4 accent-gray-900 cursor-pointer"
+                              />
+                            </TableCell>
+                            <TableCell><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full border" style={{ background: color?.hexCodes.length === 1 ? color.hexCodes[0] : `linear-gradient(to right, ${color?.hexCodes[0]} 50%, ${color?.hexCodes[1]} 50%)` }} /><span className={cn("text-sm", isMain ? "font-bold text-gray-900" : "font-semibold")}>{color?.name}</span><span className="text-gray-300">/</span><span className={cn("text-sm", isMain ? "font-black" : "font-bold")}>{size?.name}</span></div></TableCell>
+                            <TableCell><Input type="number" placeholder="0" className="h-8 font-mono text-xs" value={variantMatrix[variant.key]?.stock || ''} onChange={(e) => handleMatrixChange(variant.key, 'stock', e.target.value)} /></TableCell>
+                            <TableCell><div className="relative"><span className="absolute left-2.5 top-2 text-[10px] text-gray-400 font-bold">Rp</span><Input type="number" placeholder="0" className={cn("pl-7 h-8 font-mono text-xs transition-colors", isMain && "border-gray-400 font-bold bg-white")} value={variantMatrix[variant.key]?.price || ''} onChange={(e) => handleMatrixChange(variant.key, 'price', e.target.value)} /></div></TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* KOLOM KANAN (PREVIEW & STATUS) */}
+        <div className="flex flex-col gap-8 sticky top-36">
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader className="pb-4"><CardTitle className="text-sm">Status Visibilitas</CardTitle></CardHeader>
+            <CardContent>
+              <Select value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="PUBLISHED">Published</SelectItem><SelectItem value="DRAFT">Draft (Hidden)</SelectItem></SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg border-gray-200 overflow-hidden">
+            <CardHeader className="bg-gray-900 text-white py-3 px-4"><CardTitle className="text-xs uppercase flex items-center gap-2"><Eye className="w-3.5 h-3.5" /> Live Preview</CardTitle></CardHeader>
+            <CardContent className="p-0 bg-gray-50 flex justify-center py-6">
+              <div className="w-[85%] bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                <div className="w-full aspect-[3/4] relative bg-gray-100">
+                  {previewCoverImage ? <Image src={previewCoverImage} alt="Preview" fill className="object-cover" /> : <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-300"><ImageIcon className="w-8 h-8 mb-2 opacity-50" /><span className="text-[10px] uppercase font-bold tracking-widest">No Image</span></div>}
+                  {formData.status === 'DRAFT' && <div className="absolute top-2 left-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">DRAFT</div>}
+                </div>
+                <div className="p-3">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-1 truncate">{categories.find(c => c.id === formData.categoryId)?.name || 'CATEGORY'}</p>
+                  <h3 className="text-sm font-bold text-gray-900 leading-tight mb-2 truncate">{formData.name || 'Nama Produk'}</h3>
+                  <p className="text-xs font-mono font-black text-gray-900 mb-3">Rp {parseInt(previewPrice || '0').toLocaleString('id-ID')}</p>
+                  {selectedColorIds.length > 0 && (
+                    <div className="flex gap-1.5">{selectedColorIds.map(cId => {
+                      const color = masterColors.find(c => c.id === cId);
+                      const isMainColor = cId === mainColorIdForPreview;
+                      return <div key={cId} className={cn("w-3.5 h-3.5 rounded-full border transition-all", isMainColor ? "ring-2 ring-offset-1 ring-gray-900 border-gray-300" : "border-gray-200 opacity-60")} style={{ background: color?.hexCodes.length === 1 ? color.hexCodes[0] : `linear-gradient(to right, ${color?.hexCodes[0]} 50%, ${color?.hexCodes[1]} 50%)` }} />;
+                    })}</div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* MEDIA KANBAN BOARD */}
+        <Card className="col-span-full border-gray-200 shadow-sm mt-4 overflow-hidden bg-gray-50/30">
+          <CardHeader className="bg-white border-b border-gray-200 flex flex-row items-center justify-between py-5">
+            <div>
+              <CardTitle className="text-xl flex items-center gap-2"><ImageIcon className="w-5 h-5 text-gray-400" /> Pengelola Media (Kanban)</CardTitle>
+              <CardDescription className="mt-1">Unggah gambar dan <b>Drag & Drop</b> antar kolom untuk mengelompokkannya berdasarkan warna.</CardDescription>
+            </div>
+            <Button type="button" onClick={() => !isUploading && fileInputRef.current?.click()} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <UploadCloud className="w-4 h-4 mr-2" /> {isUploading ? 'Mengunggah...' : 'Unggah Foto Baru'}
+            </Button>
+            <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="flex gap-6 overflow-x-auto pb-4 snap-x">
+              {renderMediaColumn('', 'Belum Dialokasikan', null)}
+              {selectedColorIds.map(cId => {
+                const color = masterColors.find(c => c.id === cId);
+                return color ? renderMediaColumn(cId, color.name, color.hexCodes) : null;
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+      </div>
+
+      {/* FULLSCREEN LIGHTBOX MODAL */}
+      {previewImage && (
+        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setPreviewImage(null)}>
+          <button className="absolute top-6 right-6 text-white hover:text-red-500 transition-colors bg-white/10 p-2 rounded-full" onClick={() => setPreviewImage(null)}><X className="w-6 h-6" /></button>
+          <div className="relative w-full max-w-4xl h-[90vh]" onClick={(e) => e.stopPropagation()}><Image src={previewImage} alt="Fullscreen Preview" fill className="object-contain" /></div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-
-        {/* BAGIAN 1: INFO UMUM */}
-        <div className="bg-white p-6 md:p-8 border border-gray-200 shadow-sm rounded-md flex flex-col gap-6">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-2 border-b border-gray-100 pb-2">General Information</h2>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-widest">Product Name *</label>
-            <input required type="text" className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-widest">Description</label>
-            <textarea rows={4} className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none resize-y" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-widest">Price (IDR) *</label>
-            <input required type="number" min="0" className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-widest">Status</label>
-            <select className="border border-gray-300 p-3 text-sm focus:border-black focus:outline-none bg-white" value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}>
-              <option value="PUBLISHED">Published (Visible)</option>
-              <option value="DRAFT">Draft (Hidden)</option>
-              <option value="ARCHIVED">Archived</option>
-            </select>
-          </div>
-        </div>
-
-        {/* BAGIAN 2: UPLOAD GAMBAR */}
-        <div className="bg-white p-6 md:p-8 border border-gray-200 shadow-sm rounded-md flex flex-col gap-6">
-          <div className="flex justify-between items-end border-b border-gray-100 pb-2 mb-2">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Product Images (Max 4)</h2>
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{images.length} / 4 Uploaded</span>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {images.map((url, idx) => (
-              <div key={idx} className="aspect-square relative border border-gray-200 bg-gray-50 group overflow-hidden rounded-sm">
-                <Image src={url} alt={`Preview ${idx + 1}`} fill className="object-cover" />
-                <button type="button" onClick={() => removeImage(idx)} className="absolute top-2 right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">X</button>
-                {idx === 0 && <span className="absolute bottom-2 left-2 bg-black text-white text-[8px] font-bold uppercase tracking-widest px-2 py-1 rounded-sm">Main</span>}
-              </div>
-            ))}
-
-            {images.length < 4 && (
-              <div onClick={() => !isUploading && fileInputRef.current?.click()} className={`aspect-square border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-2 rounded-sm transition-colors ${isUploading ? 'bg-gray-100 cursor-wait' : 'hover:bg-gray-50 hover:border-black cursor-pointer'}`}>
-                {isUploading ? <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Uploading...</span> : <><span className="text-2xl text-gray-400">+</span><span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Add Image</span></>}
-                <input
-                  type="file"
-                  multiple
-                  accept="image/jpeg, image/png, image/webp"
-                  className="hidden"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* BAGIAN 3: VARIAN UKURAN */}
-        <div className="bg-white p-6 md:p-8 border border-gray-200 shadow-sm rounded-md flex flex-col gap-6">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-2 border-b border-gray-100 pb-2">Sizes & Availability</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {sizes.map((sizeObj, index) => (
-              <div key={sizeObj.size} className="flex items-center justify-between border border-gray-200 p-4 rounded-sm">
-                <span className="font-bold text-sm uppercase">{sizeObj.size}</span>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${sizeObj.isAvailable ? 'text-green-600' : 'text-red-500'}`}>{sizeObj.isAvailable ? 'Available' : 'Sold Out'}</span>
-                  <input type="checkbox" checked={sizeObj.isAvailable} onChange={(e) => {
-                    const newSizes = [...sizes];
-                    newSizes[index].isAvailable = e.target.checked;
-                    setSizes(newSizes);
-                  }} className="w-4 h-4 accent-black cursor-pointer" />
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-4 mt-4">
-          <button type="button" onClick={() => router.push('/admin/products')} className="px-6 py-3 border border-gray-300 text-xs font-bold uppercase tracking-widest hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={isLoading} className="bg-black text-white px-8 py-3 text-xs font-bold uppercase tracking-widest hover:bg-gray-800 disabled:bg-gray-400">{isLoading ? 'Saving...' : 'Update Product'}</button>
-        </div>
-
-      </form>
     </div>
   );
 }
