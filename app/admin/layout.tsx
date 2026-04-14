@@ -19,7 +19,10 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Navigation2,
+  FileText,
+  Globe
 } from 'lucide-react';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -66,7 +69,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     {
       label: 'CMS',
       items: [
+        { name: 'All Pages', path: '/admin/pages', icon: FileText }, // <-- TAMBAHKAN INI
         { name: 'Page Builder', path: '/admin/cms', icon: LayoutDashboard },
+        { name: 'Navigation', path: '/admin/navigations', icon: Globe },
       ]
     },
     {

@@ -162,15 +162,19 @@ model OrderItem {
 // ==========================================
 
 model Page {
-  id          String    @id @default(cuid())
-  title       String    // Nama halaman di admin (misal: "Homepage Utama")
-  slug        String    @unique // URL endpoint (misal: "home" atau "promo-lebaran")
-  isPublished Boolean   @default(false)
+  id              String    @id @default(cuid())
+  title           String    // Nama halaman di admin
+  slug            String    @unique // URL endpoint
+  isPublished     Boolean   @default(false)
   
-  sections    Section[]
+  metaTitle       String?   @db.Text
+  metaDescription String?   @db.Text
+  ogImage         String?   @db.Text
+
+  sections        Section[]
   
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Section {
@@ -202,4 +206,18 @@ model Block {
   // Relasi tunggal opsional (berguna jika blok murni hanya showcase 1 varian)
   variantId   String?
   variant     Variant?  @relation(fields: [variantId], references: [id], onDelete: SetNull)
+}
+
+// ==========================================
+// GLOBAL SETTINGS (Header, Footer, Config)
+// ==========================================
+
+model StoreSettings {
+  // Kita hanya akan menyimpan 1 baris data di tabel ini
+  id        String   @id @default("global") 
+  
+  // Semua struktur menu navigasi, link sosial media, dan teks footer disimpan di sini
+  content   Json     @default("{}") 
+  
+  updatedAt DateTime @updatedAt
 }

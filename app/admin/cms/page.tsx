@@ -24,7 +24,9 @@ import { cn } from "@/lib/utils";
 
 export default function CMSBuilderPage() {
   const [slug, setSlug] = useState('home');
+  const [allPages, setAllPages] = useState<any[]>([]);
   const [pageData, setPageData] = useState<any>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -41,43 +43,40 @@ export default function CMSBuilderPage() {
   const [isBlockPickerOpen, setIsBlockPickerOpen] = useState(false);
   const [targetSectionId, setTargetSectionId] = useState<string | null>(null);
 
-  // ==========================================
-  // FITUR BARU: AUTO-SCALING KANVAS (RESIZE OBSERVER)
-  // ==========================================
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
 
   useEffect(() => {
-    // Fungsi ini akan terus mengukur lebar layar yang tersisa di tengah
+    const params = new URLSearchParams(window.location.search);
+    const slugParam = params.get('slug');
+    if (slugParam) setSlug(slugParam);
+  }, []);
+
+  useEffect(() => {
+    const fetchAllPages = async () => {
+      const res = await fetch('/api/admin/pages');
+      if (res.ok) {
+        const data = await res.json();
+        setAllPages(Array.isArray(data) ? data : (data.data || []));
+      }
+    };
+    fetchAllPages();
+  }, []);
+
+  useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
       for (let entry of entries) {
         const availableWidth = entry.contentRect.width;
-
-        // Target lebar asli browser: 1280px (Desktop) atau 375px (Mobile)
         const targetWidth = viewMode === 'desktop' ? 1280 : 375;
-
-        // Memberikan spasi kiri-kanan (padding visual)
         const padding = viewMode === 'desktop' ? 80 : 40;
-
         if (availableWidth === 0) return;
-
-        // Hitung skala: Jika layar sisa 800px, maka skalanya menjadi 0.625 (62.5%)
-        const calculatedScale = (availableWidth - padding) / targetWidth;
-
-        // Membatasi zoom maksimal 100% agar tidak pecah/terlalu besar
-        setPreviewScale(Math.min(1, calculatedScale));
+        setPreviewScale(Math.min(1, (availableWidth - padding) / targetWidth));
       }
     });
-
-    if (workspaceRef.current) {
-      resizeObserver.observe(workspaceRef.current);
-    }
-
+    if (workspaceRef.current) resizeObserver.observe(workspaceRef.current);
     return () => resizeObserver.disconnect();
-  }, [viewMode, isInspectorOpen]); // Trigger ulang ketika Inspector ditutup/buka
+  }, [viewMode, isInspectorOpen]);
 
-
-  // --- FETCH DATA HALAMAN ---
   useEffect(() => {
     const fetchPage = async () => {
       setIsLoading(true);
@@ -87,7 +86,7 @@ export default function CMSBuilderPage() {
         setPageData(data);
         setActiveItem({ type: 'page', id: data?.id });
       } catch (error) {
-        console.error("Gagal memuat halaman", error);
+        console.error(error);
       } finally {
         setIsLoading(false);
       }
@@ -95,7 +94,6 @@ export default function CMSBuilderPage() {
     fetchPage();
   }, [slug]);
 
-  // --- FUNGSI SIMPAN KE DATABASE ---
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -112,7 +110,6 @@ export default function CMSBuilderPage() {
     }
   };
 
-  // --- MANIPULASI DATA KANVAS ---
   const addSection = () => {
     const newSection = { id: `sec-${Date.now()}`, name: `New Section`, layout: 'CONTAINER', paddingY: 'py-20', blocks: [] };
     setPageData({ ...pageData, sections: [...pageData.sections, newSection] });
@@ -160,7 +157,9 @@ export default function CMSBuilderPage() {
       const res = await fetch(`/api/admin/upload?filename=${file.name}`, { method: 'POST', body: file });
       const blob = await res.json();
 
-      if (uploadTarget.parentKey && uploadTarget.index !== undefined) {
+      if (uploadTarget.sectionId === 'page') {
+        setPageData({ ...pageData, [uploadTarget.key]: blob.url });
+      } else if (uploadTarget.parentKey && uploadTarget.index !== undefined) {
         const sec = pageData.sections.find((s: any) => s.id === uploadTarget.sectionId);
         const blk = sec.blocks.find((b: any) => b.id === uploadTarget.blockId);
         const newArr = [...(blk.content[uploadTarget.parentKey] || [])];
@@ -176,7 +175,6 @@ export default function CMSBuilderPage() {
     }
   };
 
-  // --- RENDERER FORM INSPECTOR ---
   const renderField = (field: CMSField, sectionId: string, block: any, parentKey?: string, index?: number) => {
     let val = block.content[field.key] || '';
     if (parentKey && index !== undefined) val = block.content[parentKey]?.[index]?.[field.key] || '';
@@ -247,13 +245,24 @@ export default function CMSBuilderPage() {
     <div className="flex h-screen bg-[#E5E5E5] overflow-hidden font-sans">
       <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
 
-      {/* ========================================== */}
-      {/* KIRI: KANVAS VISUAL (LIVE PREVIEW) */}
-      {/* ========================================== */}
       <div className="flex-1 flex flex-col min-w-0 relative">
         <header className="h-14 bg-white border-b px-6 flex items-center justify-between shrink-0 z-20 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 rounded-md text-white font-bold text-xs shadow-sm"><Globe className="w-3.5 h-3.5" /> ALIVE BUILDER</div>
+
+            <Select value={slug} onValueChange={(val) => { setSlug(val); setActiveItem(null); }}>
+              <SelectTrigger className="w-[180px] h-8 text-xs bg-gray-50 border-gray-200">
+                <SelectValue placeholder="Pilih Halaman" />
+              </SelectTrigger>
+              <SelectContent>
+                {allPages.map((p) => (
+                  <SelectItem key={p.slug} value={p.slug}>
+                    {p.title} <span className="text-[10px] text-gray-400 ml-1">/{p.slug}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Tabs value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
               <TabsList className="h-8 bg-gray-100">
                 <TabsTrigger value="desktop" className="text-[10px] uppercase font-bold px-3 h-6"><Monitor className="w-3 h-3 mr-1.5" /> Desktop</TabsTrigger>
@@ -272,26 +281,12 @@ export default function CMSBuilderPage() {
           </div>
         </header>
 
-        {/* CONTAINER UTAMA YANG DIPANTAU OLEH RESIZEOBSERVER */}
-        <div
-          ref={workspaceRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden p-6 lg:p-10 flex flex-col items-center custom-scrollbar"
-        >
-          {/* PEMBUNGKUS SCALE DINAMIS */}
+        <div ref={workspaceRef} className="flex-1 overflow-y-auto overflow-x-hidden p-6 lg:p-10 flex flex-col items-center custom-scrollbar">
           <div
             className="pb-32 transition-transform duration-300 ease-out origin-top flex justify-center w-full"
-            style={{
-              transform: `scale(${previewScale})`,
-              // Mengubah width fisik wadah ini agar sesuai dengan simulasi
-              width: viewMode === 'desktop' ? '1280px' : '375px',
-            }}
+            style={{ transform: `scale(${previewScale})`, width: viewMode === 'desktop' ? '1280px' : '375px' }}
           >
-            <div className={cn(
-              "bg-white shadow-2xl shrink-0 transition-all w-full",
-              viewMode === 'desktop'
-                ? "min-h-[800px] border border-gray-200"
-                : "rounded-[40px] border-[12px] border-gray-900 min-h-[700px] overflow-hidden"
-            )}>
+            <div className={cn("bg-white shadow-2xl shrink-0 transition-all w-full", viewMode === 'desktop' ? "min-h-[800px] border border-gray-200" : "rounded-[40px] border-[12px] border-gray-900 min-h-[700px] overflow-hidden")}>
               <PreviewRenderer
                 sections={pageData.sections}
                 activeItem={activeItem}
@@ -306,13 +301,7 @@ export default function CMSBuilderPage() {
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* KANAN: INSPECTOR PROPERTIES */}
-      {/* ========================================== */}
-      <aside className={cn(
-        "bg-white border-l border-gray-200 shadow-2xl flex flex-col shrink-0 z-30 transition-all duration-300 ease-in-out",
-        isInspectorOpen ? "w-[380px]" : "w-0 overflow-hidden border-l-0 opacity-0"
-      )}>
+      <aside className={cn("bg-white border-l border-gray-200 shadow-2xl flex flex-col shrink-0 z-30 transition-all duration-300 ease-in-out", isInspectorOpen ? "w-[380px]" : "w-0 overflow-hidden border-l-0 opacity-0")}>
         <header className="h-14 border-b px-5 flex items-center gap-2 bg-gray-50 text-gray-900 shrink-0 w-[380px]">
           <Settings className="w-4 h-4 text-gray-500" />
           <h2 className="text-[11px] font-black uppercase tracking-widest text-gray-600">Inspector Properties</h2>
@@ -331,7 +320,6 @@ export default function CMSBuilderPage() {
                 <h3 className="text-lg font-bold leading-tight text-gray-900">
                   {activeItem?.type === 'block' ? CMS_COMPONENTS[activeData.type]?.name : (activeItem?.type === 'section' ? "Layout Section" : "Page Settings")}
                 </h3>
-                {activeItem?.type === 'block' && <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">{CMS_COMPONENTS[activeData.type]?.description}</p>}
               </div>
 
               {activeItem?.type === 'block' && activeItem.sectionId && (
@@ -363,9 +351,49 @@ export default function CMSBuilderPage() {
               )}
 
               {activeItem?.type === 'page' && (
-                <div className="space-y-4">
-                  <div className="space-y-1"><Label className="text-[10px] uppercase font-bold text-gray-400">Page Title</Label><Input value={activeData.title} onChange={(e) => setPageData({ ...pageData, title: e.target.value })} className="h-8 text-xs" /></div>
-                  <div className="space-y-1"><Label className="text-[10px] uppercase font-bold text-gray-400">URL Slug</Label><Input value={activeData.slug} disabled className="bg-gray-50 text-gray-400 h-8 text-xs" /></div>
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-600">General Settings</h4>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold">Judul Halaman</Label>
+                      <Input value={activeData.title} onChange={(e) => setPageData({ ...pageData, title: e.target.value })} className="h-8 text-xs" />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-green-600">SEO Configuration</h4>
+                      <Button variant="ghost" className="h-6 px-2 text-[9px] font-bold text-gray-400 hover:text-blue-600" onClick={() => {
+                        const firstTitle = pageData.sections?.[0]?.blocks?.[0]?.content?.title || activeData.title;
+                        const firstDesc = pageData.sections?.[0]?.blocks?.[0]?.content?.description || "";
+                        setPageData({ ...pageData, metaTitle: firstTitle, metaDescription: firstDesc.substring(0, 160) });
+                      }}>
+                        Auto-Sync
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-bold">Meta Title</Label>
+                        <Input value={activeData.metaTitle || ""} onChange={(e) => setPageData({ ...pageData, metaTitle: e.target.value })} className="h-8 text-xs" placeholder="Judul di Google..." />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-bold">Meta Description</Label>
+                        <Textarea value={activeData.metaDescription || ""} onChange={(e) => setPageData({ ...pageData, metaDescription: e.target.value })} className="text-xs min-h-[80px]" placeholder="Ringkasan halaman..." />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-bold">OG Image (Social Share)</Label>
+                        <Button variant="outline" className="w-full h-8 text-[10px] border-dashed" onClick={() => setImagePickerTarget({ sectionId: 'page', key: 'ogImage' })}>
+                          {activeData.ogImage ? "Ganti Gambar" : "Pilih Gambar Preview"}
+                        </Button>
+                        {activeData.ogImage && (
+                          <div className="mt-2 aspect-video relative rounded-md overflow-hidden border"><img src={activeData.ogImage} className="object-cover w-full h-full" alt="og" /></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -373,9 +401,6 @@ export default function CMSBuilderPage() {
         </div>
       </aside>
 
-      {/* ========================================== */}
-      {/* MODAL PICKERS */}
-      {/* ========================================== */}
       <Dialog open={isBlockPickerOpen} onOpenChange={setIsBlockPickerOpen}>
         <DialogContent className="max-w-2xl bg-white shadow-2xl">
           <DialogHeader><DialogTitle className="text-center text-sm font-bold uppercase tracking-widest text-gray-900">Pilih Komponen</DialogTitle></DialogHeader>
@@ -392,13 +417,14 @@ export default function CMSBuilderPage() {
       </Dialog>
 
       <ProductPickerModal isOpen={!!pickerTarget} onClose={() => setPickerTarget(null)} onSelect={(v) => { if (!pickerTarget) return; if (pickerTarget.parentKey && pickerTarget.index !== undefined) { const newArr = [...(activeData?.content[pickerTarget.parentKey] || [])]; newArr[pickerTarget.index][pickerTarget.key] = v.variantId; if (v.imageUrl) newArr[pickerTarget.index]['primaryImage'] = v.imageUrl; updateBlockContent(pickerTarget.sectionId, pickerTarget.blockId, pickerTarget.parentKey, newArr); } else { updateBlockContent(pickerTarget.sectionId, pickerTarget.blockId, pickerTarget.key, v.variantId); } }} />
-      {/* 3. Modal Pilih Gambar dari Katalog */}
       <ProductImagePickerModal
         isOpen={!!imagePickerTarget}
         onClose={() => setImagePickerTarget(null)}
         onSelect={(url) => {
           if (!imagePickerTarget) return;
-          if (imagePickerTarget.parentKey && imagePickerTarget.index !== undefined) {
+          if (imagePickerTarget.sectionId === 'page') {
+            setPageData({ ...pageData, [imagePickerTarget.key]: url });
+          } else if (imagePickerTarget.parentKey && imagePickerTarget.index !== undefined) {
             const newArr = [...(activeData?.content[imagePickerTarget.parentKey] || [])];
             newArr[imagePickerTarget.index][imagePickerTarget.key] = url;
             updateBlockContent(imagePickerTarget.sectionId, imagePickerTarget.blockId, imagePickerTarget.parentKey, newArr);
