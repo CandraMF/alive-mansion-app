@@ -17,7 +17,9 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -25,6 +27,9 @@ const inter = Inter({ subsets: ['latin'] });
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // FITUR BARU: State untuk Sidebar Collapsible di Desktop
+  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
 
   useEffect(() => {
     if (isMobileMenuOpen) {
@@ -35,7 +40,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileMenuOpen]);
 
-  // PERUBAHAN 1: Struktur data diubah menjadi bentuk Grup
   const navGroups = [
     {
       label: 'Main',
@@ -60,6 +64,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       ]
     },
     {
+      label: 'CMS',
+      items: [
+        { name: 'Page Builder', path: '/admin/cms', icon: LayoutDashboard },
+      ]
+    },
+    {
       label: 'System',
       items: [
         { name: 'Settings', path: '/admin/settings', icon: Settings },
@@ -67,7 +77,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   ];
 
-  // Fungsi helper untuk mendapatkan nama halaman saat ini (untuk di Topbar)
   const getCurrentPageName = () => {
     for (const group of navGroups) {
       const found = group.items.find(item => item.path === pathname);
@@ -76,42 +85,52 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return 'Dashboard';
   };
 
-  // PERUBAHAN 2: Fungsi render di-update untuk me-looping grup
-  const renderNavLinks = (isMobile = false) => (
-    <nav className="flex-1 py-6 px-3 flex flex-col gap-6 overflow-y-auto no-scrollbar">
-      {navGroups.map((group, groupIdx) => (
-        <div key={groupIdx} className="flex flex-col gap-1.5">
-          {/* Label Grup */}
-          <span className="px-4 text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400 mb-1">
-            {group.label}
-          </span>
+  // Render NavLinks dibuat dinamis mengikuti status Collapse
+  const renderNavLinks = (isMobile = false) => {
+    const collapsed = !isMobile && isDesktopCollapsed;
 
-          {/* Item di dalam Grup */}
-          {group.items.map((item) => {
-            const isActive = pathname === item.path;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.name}
-                href={item.path}
-                onClick={() => isMobile && setIsMobileMenuOpen(false)}
-                className={cn(
-                  "group flex items-center px-4 py-2.5 text-sm font-medium transition-all duration-200 rounded-md",
-                  isActive ? "text-gray-900 bg-gray-100" : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-                )}
-              >
-                <Icon
-                  strokeWidth={isActive ? 2.5 : 2}
-                  className={cn("w-[18px] h-[18px] mr-3 transition-transform duration-200", isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-900")}
-                />
-                {item.name}
-              </Link>
-            );
-          })}
-        </div>
-      ))}
-    </nav>
-  );
+    return (
+      <nav className="flex-1 py-6 flex flex-col gap-6 overflow-y-auto no-scrollbar">
+        {navGroups.map((group, groupIdx) => (
+          <div key={groupIdx} className="flex flex-col gap-1.5 px-3">
+            {/* Label Grup / Divider */}
+            {collapsed ? (
+              <div className="h-px bg-gray-100 my-2 mx-2" />
+            ) : (
+              <span className="px-4 text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400 mb-1">
+                {group.label}
+              </span>
+            )}
+
+            {/* Item Menu */}
+            {group.items.map((item) => {
+              const isActive = pathname === item.path;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.path}
+                  title={collapsed ? item.name : undefined} // Tooltip bawaan saat di-hover jika collapsed
+                  onClick={() => isMobile && setIsMobileMenuOpen(false)}
+                  className={cn(
+                    "group flex items-center py-2.5 text-sm font-medium transition-all duration-200 rounded-md",
+                    collapsed ? "justify-center px-0" : "px-4",
+                    isActive ? "text-gray-900 bg-gray-100" : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                  )}
+                >
+                  <Icon
+                    strokeWidth={isActive ? 2.5 : 2}
+                    className={cn("w-[18px] h-[18px] transition-transform duration-200 shrink-0", !collapsed && "mr-3", isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-900")}
+                  />
+                  {!collapsed && <span className="truncate">{item.name}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+    );
+  };
 
   return (
     <div className={cn("min-h-screen bg-gray-50/50 flex flex-col md:flex-row", inter.className)}>
@@ -138,43 +157,57 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <X className="w-5 h-5" />
           </button>
         </div>
-
         {renderNavLinks(true)}
-
         <div className="p-4 border-t border-gray-100 shrink-0 bg-gray-50">
           <button className="flex items-center gap-3 w-full text-sm font-medium text-red-600 hover:text-red-700 transition-colors p-2 rounded-md hover:bg-red-50">
-            <LogOut className="w-4 h-4" />
-            Logout
+            <LogOut className="w-4 h-4" /> Logout
           </button>
         </div>
       </aside>
 
-      {/* --- DESKTOP: SIDEBAR --- */}
-      <aside className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col sticky top-0 h-screen z-20 shrink-0">
-        <div className="h-16 px-8 border-b border-gray-100 flex items-center justify-between shrink-0">
-          <Link href="/" className="text-lg font-bold tracking-tight text-gray-900">
-            Alive Admin
-          </Link>
+      {/* --- DESKTOP: SIDEBAR (SEKARANG COLLAPSIBLE) --- */}
+      <aside
+        className={cn(
+          "hidden md:flex bg-white border-r border-gray-200 flex-col sticky top-0 h-screen z-20 shrink-0 transition-all duration-300 ease-in-out",
+          isDesktopCollapsed ? "w-20" : "w-64" // Lebar menyusut
+        )}
+      >
+        <div className={cn("h-16 flex items-center border-b border-gray-100 shrink-0", isDesktopCollapsed ? "justify-center" : "justify-between px-6")}>
+          {!isDesktopCollapsed && (
+            <Link href="/" className="text-lg font-bold tracking-tight text-gray-900 truncate">
+              Alive Admin
+            </Link>
+          )}
+          {/* Tombol Toggle Sidebar */}
+          <button
+            onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)}
+            className="text-gray-400 hover:text-gray-900 p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+          >
+            {isDesktopCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+          </button>
         </div>
 
         {renderNavLinks(false)}
 
-        <div className="p-4 mx-3 mb-3 border border-gray-100 rounded-lg shrink-0 bg-white shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3 cursor-pointer">
-            <Avatar className="w-9 h-9 rounded-md">
+        {/* Profil Admin */}
+        <div className={cn("mb-3 border border-gray-100 rounded-lg shrink-0 bg-white shadow-sm hover:shadow-md transition-all", isDesktopCollapsed ? "mx-2 p-2 flex justify-center" : "mx-3 p-4")}>
+          <div className={cn("flex items-center cursor-pointer", !isDesktopCollapsed && "gap-3")}>
+            <Avatar className={cn("rounded-md shrink-0", isDesktopCollapsed ? "w-8 h-8" : "w-9 h-9")}>
               <AvatarFallback className="bg-gray-100 text-sm font-semibold text-gray-900">AD</AvatarFallback>
             </Avatar>
-            <div className="flex flex-col overflow-hidden">
-              <span className="text-sm font-semibold text-gray-900 leading-none mb-1 truncate">Admin User</span>
-              <span className="text-xs font-normal text-gray-500 leading-none truncate">admin@alive.com</span>
-            </div>
+            {!isDesktopCollapsed && (
+              <div className="flex flex-col overflow-hidden">
+                <span className="text-sm font-semibold text-gray-900 leading-none mb-1 truncate">Admin User</span>
+                <span className="text-xs font-normal text-gray-500 leading-none truncate">admin@alive.com</span>
+              </div>
+            )}
           </div>
         </div>
       </aside>
 
       {/* --- MAIN CONTENT AREA --- */}
-      <main className="flex-1 overflow-y-auto w-full">
-        <header className="bg-white/80 backdrop-blur-md h-16 border-b border-gray-200 hidden md:flex items-center px-10 justify-between sticky top-0 z-10">
+      <main className="flex-1 overflow-y-auto w-full flex flex-col">
+        <header className="bg-white/80 backdrop-blur-md h-16 border-b border-gray-200 hidden md:flex items-center px-10 justify-between sticky top-0 z-10 shrink-0">
           <span className="text-sm font-semibold text-gray-900">
             {getCurrentPageName()}
           </span>
@@ -184,7 +217,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </header>
 
-        <div className="p-4 md:p-10 text-gray-900">
+        {/* FITUR BARU: Padding dihapus total agar halaman menggunakan 100% ruang yang tersedia */}
+        <div className="text-gray-900 flex-1 relative w-full">
           {children}
         </div>
       </main>

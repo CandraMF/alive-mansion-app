@@ -120,6 +120,8 @@ model Variant {
   sku         String?     @unique 
   
   orderItems  OrderItem[]
+
+  blocks      Block[]
   
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -153,4 +155,51 @@ model OrderItem {
   
   quantity  Int
   priceAt   Int      // Mencatat harga saat barang dibeli
+}
+
+// ==========================================
+// CMS (CONTENT MANAGEMENT SYSTEM) MODELS
+// ==========================================
+
+model Page {
+  id          String    @id @default(cuid())
+  title       String    // Nama halaman di admin (misal: "Homepage Utama")
+  slug        String    @unique // URL endpoint (misal: "home" atau "promo-lebaran")
+  isPublished Boolean   @default(false)
+  
+  sections    Section[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Section {
+  id          String    @id @default(cuid())
+  pageId      String
+  page        Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  
+  name        String    // Label untuk admin (misal: "Hero Banner", "Grid Best Seller")
+  layout      String    @default("CONTAINER") // Opsi: FULL_WIDTH, CONTAINER
+  paddingY    String    @default("py-12")     // Jarak atas bawah
+  background  String?   // Warna latar belakang opsional
+  
+  position    Int       @default(0) // Urutan section dari atas ke bawah
+  
+  blocks      Block[]
+}
+
+model Block {
+  id          String    @id @default(cuid())
+  sectionId   String
+  section     Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  
+  type        String    // Tipe komponen dari Registry (misal: "FEATURED_GRID", "TEXT_BLOCK")
+  position    Int       @default(0) // Urutan elemen di dalam section
+  
+  // Jantung CMS: Menyimpan data dinamis seperti text, array variantIds, dll
+  content     Json      @default("{}") 
+  
+  // Relasi tunggal opsional (berguna jika blok murni hanya showcase 1 varian)
+  variantId   String?
+  variant     Variant?  @relation(fields: [variantId], references: [id], onDelete: SetNull)
 }
