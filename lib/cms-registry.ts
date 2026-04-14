@@ -1,13 +1,13 @@
-export type CMSFieldType = 'text' | 'textarea' | 'image' | 'video' | 'select' | 'align' | 'object_array' | 'variant_picker' | 'color' | 'number';
+// Tambahan 'font_select' pada CMSFieldType
+export type CMSFieldType = 'text' | 'textarea' | 'image' | 'video' | 'select' | 'align' | 'object_array' | 'variant_picker' | 'color' | 'number' | 'font_select';
 
-// TAMBAHAN: Tipe Group untuk Accordion Inspector
 export type CMSFieldGroup = 'content' | 'layout' | 'spacing' | 'typography' | 'background';
 
 export interface CMSField {
   key: string;
   label: string;
   type: CMSFieldType;
-  group?: CMSFieldGroup; // <--- Field ini baru
+  group?: CMSFieldGroup;
   options?: { label: string, value: string }[];
   subFields?: CMSField[];
   limit?: number;
@@ -47,6 +47,9 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
       { key: 'text', label: 'Teks Judul', type: 'text', group: 'content' },
       { key: 'tag', label: 'Tag SEO', type: 'select', group: 'content', options: [{label:'H1 (Utama)', value:'h1'}, {label:'H2 (Sub)', value:'h2'}, {label:'H3 (Kecil)', value:'h3'}, {label:'H4', value:'h4'}] },
       
+      // INPUT FONT BARU
+      { key: 'fontFamily', label: 'Jenis Font', type: 'font_select', group: 'typography' },
+      
       { key: 'fontSize', label: 'Ukuran Font (px)', type: 'number', group: 'typography' },
       { key: 'fontWeight', label: 'Ketebalan Font', type: 'select', group: 'typography', options: [{label:'Normal (400)', value:'400'}, {label:'Medium (500)', value:'500'}, {label:'Bold (700)', value:'700'}, {label:'Black (900)', value:'900'}] },
       { key: 'color', label: 'Warna Teks', type: 'color', group: 'typography' },
@@ -63,6 +66,9 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
     description: 'Teks deskripsi panjang dengan pengaturan spasi.',
     fields: [
       { key: 'text', label: 'Konten Paragraf', type: 'textarea', group: 'content' },
+      
+      // INPUT FONT BARU
+      { key: 'fontFamily', label: 'Jenis Font', type: 'font_select', group: 'typography' },
       
       { key: 'fontSize', label: 'Ukuran Font (px)', type: 'number', group: 'typography' },
       { key: 'lineHeight', label: 'Jarak Baris', type: 'text', group: 'typography' },
@@ -100,6 +106,8 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
       
       { key: 'align', label: 'Posisi Tombol', type: 'align', group: 'layout', options: [{label:'Kiri', value:'flex-start'}, {label:'Tengah', value:'center'}, {label:'Kanan', value:'flex-end'}] },
       
+      // INPUT FONT BARU
+      { key: 'fontFamily', label: 'Jenis Font', type: 'font_select', group: 'typography' },
       { key: 'textColor', label: 'Warna Teks', type: 'color', group: 'typography' },
       { key: 'fontSize', label: 'Ukuran Font (px)', type: 'number', group: 'typography' },
       

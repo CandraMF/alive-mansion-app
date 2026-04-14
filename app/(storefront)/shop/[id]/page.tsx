@@ -2,10 +2,10 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import ProductDetailClient from '@/components/ProductDetailClient';
 
-export default async function ProductDetailPage({ 
-  params 
-}: { 
-  params: Promise<{ id: string }> 
+export default async function ProductDetailPage({
+  params
+}: {
+  params: Promise<{ id: string }>
 }) {
   const { id } = await params;
 
@@ -13,8 +13,19 @@ export default async function ProductDetailPage({
   const product = await prisma.product.findUnique({
     where: { id },
     include: {
-      images: { orderBy: { position: 'asc' } },
-      variants: { orderBy: { size: 'asc' } }, // Ambil data ukuran
+      images: {
+        orderBy: { position: 'asc' }
+      },
+      variants: {
+        // Ubah orderBy menggunakan sizeId atau biarkan default jika relasi kompleks
+        orderBy: { sizeId: 'asc' },
+        include: {
+          // Asumsi Anda memiliki relasi 'color' dan 'size' di Prisma schema Variant
+          // Jika tidak ada relasi dan hanya menyimpan string id, hapus blok include ini.
+          color: true,
+          size: true
+        }
+      },
     },
   });
 
@@ -22,21 +33,26 @@ export default async function ProductDetailPage({
 
   // 2. Ambil 4 produk lain untuk "You May Also Like"
   const relatedProducts = await prisma.product.findMany({
-    where: { 
+    where: {
       id: { not: id },
-      status: 'PUBLISHED' 
+      status: 'PUBLISHED'
     },
     take: 4,
-    include: { 
+    include: {
       images: { orderBy: { position: 'asc' } },
-      variants: true
+      variants: {
+        include: {
+          color: true,
+          size: true
+        }
+      }
     }
   });
 
   return (
-    <ProductDetailClient 
-      product={product as any} 
-      relatedProducts={relatedProducts as any} 
+    <ProductDetailClient
+      product={product as any}
+      relatedProducts={relatedProducts as any}
     />
   );
 }
