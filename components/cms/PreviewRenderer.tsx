@@ -1,156 +1,27 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import { cn } from "@/lib/utils";
-import { Plus, Box, Layout, Settings, ImageIcon } from 'lucide-react';
+import { Plus, Box, Layout, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CMS_COMPONENTS } from '@/lib/cms-registry';
+import { ATOMIC_MAP } from './atoms';
 
 // ==========================================
-// SUB-KOMPONEN: SMART PRODUCT CARD
+// DISPATCHER: Pusat Pendistribusi Komponen Admin
 // ==========================================
-const SmartProductCard = ({ item, index }: { item: any, index: number }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const displayImage = isHovered && item.hoverImage ? item.hoverImage : item.primaryImage;
-
-  return (
-    <div
-      // FITUR: Lebar responsif 1/5 layar dikurangi gap (sama persis dengan dummy)
-      className="snap-start shrink-0 w-[80vw] md:w-[calc(20vw-0.8rem)] group/card block"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* FITUR: Aspect ratio 4/5 */}
-      <div className="aspect-[4/5] bg-gray-100 overflow-hidden relative mb-4">
-        {displayImage ? (
-          <img src={displayImage} alt={`Product ${index}`} className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105" />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-400 font-bold uppercase tracking-widest border border-dashed border-gray-200">No Image</div>
-        )}
-      </div>
-      <div className="text-center px-2">
-        <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1">{item.variantId ? (isHovered ? 'Quick View' : 'Product Selected') : `Product Item ${index + 1}`}</h4>
-        <p className="text-[9px] text-gray-400 uppercase tracking-widest">{item.variantId || 'None selected'}</p>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// RECURSIVE ENGINE: ATOMIC RENDERER
-// ==========================================
-const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateBlockContent, onAddBlockInside }: any) => {
+const AtomicPreviewDispatcher = ({ block, sectionId, activeItem, onSelectBlock, onUpdateBlockContent, onAddBlockInside }: any) => {
   const isActive = activeItem?.type === 'block' && activeItem.id === block.id;
-  const data = block.content || {};
-  const atomClass = `atom-${block.id}`;
-  const wrapperClass = `wrap-${block.id}`;
-  const imgClass = `img-${block.id}`;
 
-  // FITUR BARU: Hooks untuk deteksi scroll indikator (Mobile)
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+  // 1. Cari komponen di Registry
+  const Component = ATOMIC_MAP[block.type];
 
-  const handleScroll = () => {
-    if (!scrollContainerRef.current) return;
-    const scrollLeft = scrollContainerRef.current.scrollLeft;
-    const itemWidth = scrollContainerRef.current.children[0]?.clientWidth || 1;
-    const index = Math.round(scrollLeft / itemWidth);
-    setActiveIndex(index);
-  };
-
-  const getDefault = (key: string) => CMS_COMPONENTS[block.type]?.fields?.find(f => f.key === key)?.defaultValue;
-  const getValue = (key: string) => (data[key] !== undefined && data[key] !== '') ? data[key] : getDefault(key);
-
-  const baseInlineStyle: React.CSSProperties = {
-    color: getValue('color') || (block.type === 'ATOMIC_TEXT' ? '#4B5563' : '#111827'),
-    fontFamily: getValue('fontFamily') || 'inherit',
-    fontWeight: getValue('fontWeight') || (block.type === 'ATOMIC_HEADING' ? '700' : '400'),
-  };
-
-  if (block.type === 'ATOMIC_BUTTON') {
-    baseInlineStyle.backgroundColor = getValue('backgroundColor') || '#000000';
-    baseInlineStyle.color = getValue('textColor') || '#ffffff';
-    baseInlineStyle.borderColor = getValue('borderColor') || 'transparent';
-    const bw = getValue('borderWidth');
-    baseInlineStyle.borderWidth = bw ? `${bw}px` : '0px';
-    baseInlineStyle.borderStyle = bw ? 'solid' : 'none';
+  // 2. Jika tidak ada, kembalikan Error Fallback
+  if (!Component) {
+    return <div className="p-4 bg-red-50 text-red-500 text-xs border border-red-200 rounded">Unknown Component: {block.type}</div>;
   }
 
-  if (block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') {
-    baseInlineStyle.backgroundColor = getValue('backgroundColor') || 'transparent';
-  }
-
-  let mob = ''; let desk = ''; let wrapMob = ''; let wrapDesk = ''; let imgMob = ''; let imgDesk = '';
-
-  const addCss = (key: string, prop: string, suffix = '') => {
-    const v = getValue(key);
-    if (v !== undefined && v !== '') mob += `${prop}: ${v}${suffix};\n`;
-    if (data[`${key}Desktop`] !== undefined && data[`${key}Desktop`] !== '') desk += `${prop}: ${data[`${key}Desktop`]}${suffix};\n`;
-  };
-
-  addCss('position', 'position');
-  addCss('top', 'top');
-  addCss('bottom', 'bottom');
-  addCss('left', 'left');
-  addCss('right', 'right');
-  addCss('transform', 'transform');
-  addCss('zIndex', 'z-index');
-  addCss('maxWidth', 'max-width');
-
-  addCss('marginTop', 'margin-top', 'px');
-  addCss('marginBottom', 'margin-bottom', 'px');
-  addCss('margin', 'margin');
-  addCss('padding', 'padding');
-  addCss('borderRadius', 'border-radius', 'px');
-
-  if (block.type === 'ATOMIC_CONTAINER') {
-    mob += `display: ${getValue('display') || 'flex'};\n`;
-    if (data.displayDesktop) desk += `display: ${data.displayDesktop};\n`;
-    if (data.display === 'grid' || data.displayDesktop === 'grid') addCss('gridColumns', 'grid-template-columns');
-    mob += `flex-direction: ${getValue('flexDirection') || 'column'};\n`;
-    if (data.flexDirectionDesktop) desk += `flex-direction: ${data.flexDirectionDesktop};\n`;
-    addCss('gap', 'gap', 'px');
-    addCss('alignItems', 'align-items');
-    addCss('justifyContent', 'justify-content');
-  }
-
-  if (block.type === 'ATOMIC_HEADING') {
-    addCss('fontSize', 'font-size', 'px');
-    addCss('letterSpacing', 'letter-spacing', 'px');
-    addCss('align', 'text-align');
-  }
-
-  if (block.type === 'ATOMIC_TEXT') {
-    addCss('fontSize', 'font-size', 'px');
-    addCss('lineHeight', 'line-height');
-    addCss('align', 'text-align');
-  }
-
-  if (block.type === 'ATOMIC_IMAGE') {
-    addCss('width', 'width');
-    addCss('height', 'height');
-    imgMob += `width: 100%; height: 100%; object-fit: ${getValue('objectFit') || 'cover'};\n`;
-    if (data.objectFitDesktop) imgDesk += `object-fit: ${data.objectFitDesktop};\n`;
-  }
-
-  if (block.type === 'ATOMIC_BUTTON') {
-    addCss('fontSize', 'font-size', 'px');
-    if (!data.padding && !data.paddingDesktop) mob += `padding: ${getValue('padding') || '12px 24px'};\n`;
-    wrapMob += `display: flex; width: 100%; justify-content: ${getValue('align') || 'flex-start'};\n`;
-    if (data.alignDesktop) wrapDesk += `justify-content: ${data.alignDesktop};\n`;
-  }
-
-  const injectedCSS = `
-    .${atomClass} { ${mob} }
-    ${imgMob ? `.${imgClass} { ${imgMob} }` : ''}
-    ${wrapMob ? `.${wrapperClass} { ${wrapMob} }` : ''}
-    @media (min-width: 768px) {
-      .${atomClass} { ${desk} }
-      ${imgDesk ? `.${imgClass} { ${imgDesk} }` : ''}
-      ${wrapDesk ? `.${wrapperClass} { ${wrapDesk} }` : ''}
-    }
-  `;
-
+  // 3. Render Komponen yang ditemukan
   return (
     <div
       onClick={(e) => { e.stopPropagation(); onSelectBlock(sectionId, block.id); }}
@@ -160,67 +31,36 @@ const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateB
         isActive ? "ring-2 ring-blue-500 ring-offset-2 z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-offset-2 z-10"
       )}
     >
-      <style dangerouslySetInnerHTML={{ __html: injectedCSS }} />
       {isActive && <div className="absolute -top-7 left-0 bg-blue-500 text-white text-[9px] font-bold px-2 py-1 rounded-t-md uppercase tracking-widest shadow-md z-40">{CMS_COMPONENTS[block.type]?.name || 'Unknown'}</div>}
 
-      {block.type === 'ATOMIC_CONTAINER' && (
-        <div className={cn(atomClass, "transition-all relative", (isActive || !block.children?.length) && "min-h-[100px] border-2 border-dashed border-gray-300")} style={baseInlineStyle}>
-          {block.children?.map((child: any) => <AtomicRenderer key={child.id} block={child} sectionId={sectionId} activeItem={activeItem} onSelectBlock={onSelectBlock} onUpdateBlockContent={onUpdateBlockContent} onAddBlockInside={onAddBlockInside} />)}
-          {(isActive || !block.children?.length) && <div className="w-full flex justify-center py-2 mt-4 opacity-50 hover:opacity-100 transition-opacity"><Button variant="outline" size="sm" className="h-7 text-[10px] bg-white text-blue-600 border-blue-200" onClick={(e) => { e.stopPropagation(); onAddBlockInside(sectionId, block.id); }}><Plus className="w-3 h-3 mr-1" /> Masukkan Elemen</Button></div>}
-        </div>
-      )}
-
-      {/* FITUR BARU: CAROUSEL DENGAN SCROLL INDICATOR */}
-      {block.type === 'ATOMIC_PRODUCT_CAROUSEL' && (
-        <div className={cn(atomClass, "transition-all w-full overflow-hidden")} style={baseInlineStyle}>
-          <div
-            ref={scrollContainerRef}
-            onScroll={handleScroll}
-            className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-6 md:px-0 pb-4 no-scrollbar scroll-px-6 md:scroll-px-0"
-          >
-            {(data.items && data.items.length > 0 ? data.items : [{}, {}, {}, {}, {}]).map((item: any, idx: number) => (
-              <SmartProductCard key={idx} item={item} index={idx} />
-            ))}
-          </div>
-
-          <div className="flex justify-center items-center gap-2 mt-2 md:hidden pb-4">
-            {(data.items && data.items.length > 0 ? data.items : [{}, {}, {}, {}, {}]).map((_, i) => (
-              <div
-                key={i}
-                className={`h-1 transition-all duration-300 ease-in-out ${activeIndex === i ? 'w-8 bg-black' : 'w-2 bg-gray-300'}`}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {block.type === 'ATOMIC_HEADING' && React.createElement(getValue('tag') || 'h2', { className: cn(atomClass, "transition-all leading-tight"), style: baseInlineStyle }, getValue('text') || 'Heading Baru')}
-      {block.type === 'ATOMIC_TEXT' && <div className={cn(atomClass, "transition-all")} style={baseInlineStyle}>{getValue('text') || 'Teks paragraf baru.'}</div>}
-
-      {block.type === 'ATOMIC_IMAGE' && (
-        <div className={cn(atomClass, "bg-gray-100 relative overflow-hidden transition-all", !data.url && "border-2 border-dashed border-gray-300 flex items-center justify-center aspect-video")} style={baseInlineStyle}>
-          {data.url ? <img src={data.url} alt="atomic" className={cn(imgClass, "transition-all")} /> : <div className="text-gray-400 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 h-full w-full"><ImageIcon className="w-4 h-4" /> Area Gambar</div>}
-        </div>
-      )}
-
-      {block.type === 'ATOMIC_BUTTON' && (
-        <div className={cn(wrapperClass, "w-full transition-all")}>
-          <a
-            href={getValue('url') || '#'}
-            onClick={(e) => e.preventDefault()}
-            className={cn(atomClass, "font-bold uppercase tracking-widest transition-all inline-flex items-center text-center")}
-            style={baseInlineStyle}
-          >
-            {getValue('label') || 'KLIK DI SINI'}
-          </a>
-        </div>
-      )}
-
-      {block.type === 'ATOMIC_SPACER' && <div className={cn(atomClass, "w-full transition-all", isActive ? "bg-blue-100/50 striped-bg" : "bg-transparent")}><div className="w-full h-full flex items-center justify-center text-[8px] font-mono text-blue-400 uppercase opacity-0 group-hover/atom:opacity-100">Spacer</div></div>}
+      <Component
+        block={block}
+        isPublic={false}
+        sectionId={sectionId}
+        activeItem={activeItem}
+        onSelectBlock={onSelectBlock}
+        onUpdateBlockContent={onUpdateBlockContent}
+        onAddBlockInside={onAddBlockInside}
+        // Rekursif: Ajari Container cara me-render anak-anaknya!
+        childrenRenderer={(child: any) => (
+          <AtomicPreviewDispatcher
+            key={child.id}
+            block={child}
+            sectionId={sectionId}
+            activeItem={activeItem}
+            onSelectBlock={onSelectBlock}
+            onUpdateBlockContent={onUpdateBlockContent}
+            onAddBlockInside={onAddBlockInside}
+          />
+        )}
+      />
     </div>
-  )
+  );
 };
 
+// ==========================================
+// RENDERER KANVAS UTAMA (ADMIN)
+// ==========================================
 export default function PreviewRenderer({
   sections, activeItem, pageTitle = "Page Settings", customFonts = [], onSelectPage, onSelectBlock, onSelectSection, onUpdateBlockContent, onAddSection, onAddBlock, onAddBlockInside
 }: any) {
@@ -249,11 +89,7 @@ export default function PreviewRenderer({
       }} />
 
       {customFonts && customFonts.length > 0 && (
-        <style dangerouslySetInnerHTML={{
-          __html: customFonts.map((f: any) => `
-            @font-face { font-family: '${f.name}'; src: url('${f.url}'); font-display: swap; }
-          `).join('\n')
-        }} />
+        <style dangerouslySetInnerHTML={{ __html: customFonts.map((f: any) => `@font-face { font-family: '${f.name}'; src: url('${f.url}'); font-display: swap; }`).join('\n') }} />
       )}
 
       <button onClick={(e) => { e.stopPropagation(); if (onSelectPage) onSelectPage(); }} className={cn("fixed top-0 right-0 text-[10px] text-white font-black px-4 py-2 z-[100] transition-all uppercase tracking-tighter flex items-center gap-1.5 rounded-bl-xl shadow-md cursor-pointer", isPageActive ? "bg-blue-600 opacity-100" : "bg-gray-900/90 backdrop-blur-sm opacity-60 hover:opacity-100")}><Settings className="w-3 h-3" /> {pageTitle}</button>
@@ -266,43 +102,28 @@ export default function PreviewRenderer({
         const secClass = `sec-${section.id}`;
         const padMob = secData.padding !== undefined && secData.padding !== '' ? secData.padding : '80px 20px';
         const padDesk = secData.paddingDesktop !== undefined && secData.paddingDesktop !== '' ? secData.paddingDesktop : padMob;
-
         const minHMob = secData.minHeight !== undefined && secData.minHeight !== '' ? secData.minHeight : 'auto';
         const minHDesk = secData.minHeightDesktop !== undefined && secData.minHeightDesktop !== '' ? secData.minHeightDesktop : minHMob;
 
-        const secCSS = `
-          .${secClass} { padding: ${padMob}; min-height: ${minHMob}; }
-          @media (min-width: 768px) { .${secClass} { padding: ${padDesk}; min-height: ${minHDesk}; } }
-        `;
+        const secCSS = `.${secClass} { padding: ${padMob}; min-height: ${minHMob}; } @media (min-width: 768px) { .${secClass} { padding: ${padDesk}; min-height: ${minHDesk}; } }`;
 
         return (
           <section key={section.id} onClick={(e) => { e.stopPropagation(); if (onSelectSection) onSelectSection(section.id); }}
-            style={{
-              backgroundColor: secData.backgroundColor || 'transparent',
-              overflow: secData.overflow || 'hidden',
-              ...bgImageStyle
-            }}
-            className={cn(
-              secClass,
-              "relative group/section transition-all duration-200 cursor-pointer flex flex-col w-full",
-              isSectionActive ? "ring-4 ring-blue-500 ring-inset z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-inset hover:bg-blue-50/10 z-10"
-            )}
+            style={{ backgroundColor: secData.backgroundColor || 'transparent', overflow: secData.overflow || 'hidden', ...bgImageStyle }}
+            className={cn(secClass, "relative group/section transition-all duration-200 cursor-pointer flex flex-col w-full", isSectionActive ? "ring-4 ring-blue-500 ring-inset z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-inset hover:bg-blue-50/10 z-10")}
           >
             <style dangerouslySetInnerHTML={{ __html: secCSS }} />
-
-            {secData.backgroundVideo && (
-              <video src={secData.backgroundVideo} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" />
-            )}
+            {secData.backgroundVideo && <video src={secData.backgroundVideo} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" />}
 
             <div className={cn("absolute top-0 left-0 text-[10px] text-white font-black px-3 py-1.5 z-50 transition-all uppercase tracking-tighter flex items-center gap-1.5 rounded-br-lg shadow-sm", isSectionActive ? "bg-blue-600 opacity-100" : "bg-gray-900 opacity-0 group-hover/section:opacity-100")}><Layout className="w-3 h-3" /> {section.name || `Section ${sIdx + 1}`}</div>
 
             <div className="w-full relative z-20 flex flex-col h-full flex-1">
-              {section.blocks.map((block: any) => {
-                if (block.type.startsWith('ATOMIC_')) {
-                  return <AtomicRenderer key={block.id} block={block} sectionId={section.id} activeItem={activeItem} onSelectBlock={onSelectBlock} onUpdateBlockContent={onUpdateBlockContent} onAddBlockInside={onAddBlockInside} />;
-                }
-                return null;
-              })}
+              {section.blocks.map((block: any) => (
+                <AtomicPreviewDispatcher
+                  key={block.id} block={block} sectionId={section.id} activeItem={activeItem}
+                  onSelectBlock={onSelectBlock} onUpdateBlockContent={onUpdateBlockContent} onAddBlockInside={onAddBlockInside}
+                />
+              ))}
             </div>
 
             <div className="flex justify-center py-6 opacity-0 group-hover/section:opacity-100 transition-all relative z-20">
