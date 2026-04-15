@@ -437,6 +437,8 @@ export default function CMSBuilderPage() {
         expandedNodes={expandedNodes}
         toggleNode={toggleNode}
         addSection={addSection}
+        onAddBlock={(sId: string) => { setTargetSectionId(sId); setTargetParentId(null); setIsBlockPickerOpen(true); }}
+        onAddBlockInside={(sId: string, pId: string) => { setTargetSectionId(sId); setTargetParentId(pId); setIsBlockPickerOpen(true); }}
       />
 
       {/* 2. CENTER AREA: CANVAS PREVIEW */}
