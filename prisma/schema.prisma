@@ -7,229 +7,188 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-
-
-
 model Category {
-  id        String     @id @default(cuid())
-  name      String     
-  slug      String     @unique 
-  
-  
-  parentId  String?    
-  parent    Category?  @relation("SubCategories", fields: [parentId], references: [id])
-  children  Category[] @relation("SubCategories")
-  
-  products  Product[]  
-  
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
+
+  parentId String?
+  parent   Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  children Category[] @relation("SubCategories")
+
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Color {
-  id        String    @id @default(cuid())
-  name      String    
-  
-  
-  
-  hexCodes  String[]  
-  
-  variants  Variant[] 
+  id   String @id @default(cuid())
+  name String
 
-  images    ProductImage[]
-  
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  hexCodes String[]
+
+  variants Variant[]
+
+  images ProductImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Size {
-  id        String    @id @default(cuid())
-  name      String    
-  
-  
-  
-  sortOrder Int       @default(0)
-  
-  variants  Variant[] 
-  
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id   String @id @default(cuid())
+  name String
+
+  sortOrder Int @default(0)
+
+  variants Variant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
-
-
-
-
-
 
 model Product {
-  id          String         @id @default(cuid())
+  id          String @id @default(cuid())
   name        String
-  description String         @db.Text
-  status      String         @default("PUBLISHED") 
-  
-  
-  categoryId  String?
-  category    Category?      @relation(fields: [categoryId], references: [id])
-  
-  
-  variants    Variant[]
-  images      ProductImage[]
-  
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  description String @db.Text
+  status      String @default("PUBLISHED")
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  variants Variant[]
+  images   ProductImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-
 model ProductImage {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  colorId   String?  
-  color     Color?   @relation(fields: [colorId], references: [id], onDelete: SetNull)
+  colorId String?
+  color   Color?  @relation(fields: [colorId], references: [id], onDelete: SetNull)
 
-  url       String
-  
-  
-  category  String   @default("MAIN") 
-  
-  
-  position  Int      @default(0) 
-  
+  url String
+
+  category String @default("MAIN")
+
+  position Int @default(0)
+
   createdAt DateTime @default(now())
 }
 
 model Variant {
-  id          String      @id @default(cuid())
-  productId   String
-  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
-  
-  sizeId      String
-  size        Size        @relation(fields: [sizeId], references: [id], onDelete: Restrict)
-  
-  colorId     String
-  color       Color       @relation(fields: [colorId], references: [id], onDelete: Restrict)
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  isMain      Boolean     @default(false)
-  
-  
-  stock       Int         @default(0) 
-  price       Int         @default(0)
-  sku         String?     @unique 
-  
-  orderItems  OrderItem[]
+  sizeId String
+  size   Size   @relation(fields: [sizeId], references: [id], onDelete: Restrict)
 
-  blocks      Block[]
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  colorId String
+  color   Color  @relation(fields: [colorId], references: [id], onDelete: Restrict)
+
+  isMain Boolean @default(false)
+
+  stock Int     @default(0)
+  price Int     @default(0)
+  sku   String? @unique
+
+  orderItems OrderItem[]
+
+  blocks Block[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-
-
-
-
 model Order {
-  id            String      @id @default(cuid())
+  id            String  @id @default(cuid())
   customerName  String
   customerEmail String
   totalAmount   Int
-  status        String      @default("PENDING") 
-  xenditInvoice String?     
-  
-  items         OrderItem[]
-  
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  status        String  @default("PENDING")
+  xenditInvoice String?
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   variantId String
-  variant   Variant  @relation(fields: [variantId], references: [id])
-  
-  quantity  Int
-  priceAt   Int      
+  variant   Variant @relation(fields: [variantId], references: [id])
+
+  quantity Int
+  priceAt  Int
 }
 
-
-
-
-
 model Page {
-  id              String    @id @default(cuid())
-  title           String    
-  slug            String    @unique 
-  isPublished     Boolean   @default(false)
-  
-  
-  metaTitle       String?   @db.Text
-  metaDescription String?   @db.Text
-  ogImage         String?   @db.Text
+  id          String  @id @default(cuid())
+  title       String
+  slug        String  @unique
+  isPublished Boolean @default(false)
 
-  
-  customFonts     Json?     @default("[]") 
+  metaTitle       String? @db.Text
+  metaDescription String? @db.Text
+  ogImage         String? @db.Text
 
-  sections        Section[]
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  customFonts Json? @default("[]")
+
+  sections Section[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Section {
-  id              String    @id @default(cuid())
-  pageId          String
-  page            Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  
-  name            String    
-  
-  
-  width           String?   @default("max-w-7xl")
+  id     String @id @default(cuid())
+  pageId String
+  page   Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  name String
+
+  width           String? @default("max-w-7xl")
   customWidth     String?
-  minHeight       String?   @default("auto")
+  minHeight       String? @default("auto")
   customHeight    String?
-  paddingY        String?   @default("py-20")
-  backgroundColor String?   @default("transparent")
-  
-  position        Int       @default(0) 
-  
-  blocks          Block[]
+  paddingY        String? @default("py-20")
+  backgroundColor String? @default("transparent")
+
+  position Int @default(0)
+
+  blocks Block[]
 }
 
 model Block {
-  id          String    @id @default(cuid())
-  sectionId   String
-  section     Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  
-  type        String    
-  position    Int       @default(0) 
-  
-  content     Json      @default("{}") 
-  
-  
-  children    Json?     @default("[]")
-  
-  
-  variantId   String?
-  variant     Variant?  @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  
+  id        String  @id @default(cuid())
+  sectionId String
+  section   Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  type     String
+  position Int    @default(0)
+
+  content Json @default("{}")
+
+  children Json? @default("[]")
+
+  variantId String?
+  variant   Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 }
 
-
-
-
-
 model StoreSettings {
-  
-  id        String   @id @default("global") 
-  
-  
-  content   Json     @default("{}") 
-  
+  id String @id @default("global")
+
+  content Json @default("{}")
+
   updatedAt DateTime @updatedAt
 }
