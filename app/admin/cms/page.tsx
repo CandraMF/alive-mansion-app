@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Save, Loader2, Monitor, Smartphone, Globe, PanelRightClose, PanelRightOpen, Layers } from 'lucide-react';
+import { Save, Loader2, Monitor, Smartphone, Globe, PanelRightClose, PanelRightOpen, Layers, ExternalLink } from 'lucide-react';
 
 // UI Components
 import { Button } from "@/components/ui/button";
@@ -426,16 +426,18 @@ export default function CMSBuilderPage() {
 
       {/* 2. CENTER AREA: CANVAS PREVIEW */}
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <header className="h-14 bg-white border-b px-6 flex items-center justify-between shrink-0 z-20 shadow-sm">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-black bg-gray-50 border border-gray-200" onClick={() => setIsNavigatorOpen(!isNavigatorOpen)}>
+        <header className="h-14 bg-white border-b px-4 flex items-center justify-between shrink-0 z-20 shadow-sm overflow-x-auto no-scrollbar gap-6">
+
+          {/* BAGIAN KIRI */}
+          <div className="flex items-center gap-3 shrink-0">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-black bg-gray-50 border border-gray-200 shrink-0" onClick={() => setIsNavigatorOpen(!isNavigatorOpen)}>
               <Layers className="w-4 h-4" />
             </Button>
 
             <Separator orientation="vertical" className="h-6" />
 
             <Select value={slug} onValueChange={(val) => { setSlug(val); setActiveItem(null); }}>
-              <SelectTrigger className="w-[180px] h-8 text-xs bg-gray-50 border-gray-200">
+              <SelectTrigger className="w-[160px] h-8 text-xs bg-gray-50 border-gray-200 shrink-0">
                 <SelectValue placeholder="Pilih Halaman" />
               </SelectTrigger>
               <SelectContent>
@@ -447,22 +449,35 @@ export default function CMSBuilderPage() {
               </SelectContent>
             </Select>
 
-            <Tabs value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
+            <Tabs value={viewMode} onValueChange={(v: any) => setViewMode(v)} className="shrink-0">
               <TabsList className="h-8 bg-gray-100">
                 <TabsTrigger value="desktop" className="text-[10px] uppercase font-bold px-3 h-6"><Monitor className="w-3 h-3 mr-1.5" /> Desktop</TabsTrigger>
                 <TabsTrigger value="mobile" className="text-[10px] uppercase font-bold px-3 h-6"><Smartphone className="w-3 h-3 mr-1.5" /> Mobile</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" className="h-8 text-xs font-bold bg-blue-600 hover:bg-blue-700 shadow-md" onClick={handleSave} disabled={isSaving}>
+
+          {/* BAGIAN KANAN */}
+          <div className="flex items-center gap-2 shrink-0">
+
+            {/* FITUR BARU: TOMBOL LIHAT WEB PUBLIK */}
+            <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-gray-600 bg-white border-gray-200 shadow-sm hover:text-blue-600 hover:border-blue-200 shrink-0" asChild>
+              <a href={`/${slug}`} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="w-3 h-3 mr-1.5" /> Lihat Web
+              </a>
+            </Button>
+
+            <Button size="sm" className="h-8 text-xs font-bold bg-blue-600 hover:bg-blue-700 shadow-md shrink-0" onClick={handleSave} disabled={isSaving}>
               {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3 mr-1.5" />} Publish
             </Button>
-            <Separator orientation="vertical" className="h-6 mx-2" />
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-black bg-gray-50 border border-gray-200" onClick={() => setIsInspectorOpen(!isInspectorOpen)}>
+
+            <Separator orientation="vertical" className="h-6 mx-1" />
+
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-black bg-gray-50 border border-gray-200 shrink-0" onClick={() => setIsInspectorOpen(!isInspectorOpen)}>
               {isInspectorOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
             </Button>
           </div>
+
         </header>
 
         <div ref={workspaceRef} className="flex-1 overflow-y-auto overflow-x-hidden p-6 lg:p-10 flex flex-col items-center custom-scrollbar">

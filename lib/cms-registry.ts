@@ -11,7 +11,7 @@ export interface CMSField {
   options?: { label: string, value: string }[];
   subFields?: CMSField[];
   limit?: number;
-  defaultValue?: any; // FITUR BARU: Nilai Default Bawaan
+  defaultValue?: any;
 }
 
 export interface CMSComponentBlueprint {
@@ -21,9 +21,6 @@ export interface CMSComponentBlueprint {
 }
 
 export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
-  // ==========================================
-  // SMART ATOMS (DYNAMIC / E-COMMERCE)
-  // ==========================================
   ATOMIC_PRODUCT_CAROUSEL: {
     name: 'Product Carousel',
     description: 'Slider kartu produk dinamis dengan efek hover.',
@@ -47,12 +44,13 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
   },
 
   // ==========================================
-  // BASIC ATOMS (LAYOUT & STATIC)
+  // ATOMIC CONTAINER (SEKARANG JAUH LEBIH KUAT)
   // ==========================================
   ATOMIC_CONTAINER: {
     name: 'Layout Container',
-    description: 'Bungkus elemen lain dengan Flexbox atau Grid (Kolom/Baris).',
+    description: 'Bungkus elemen, atur max-width, margin, dan posisi (absolute/relative).',
     fields: [
+      // 1. Flexbox / Grid Controls
       { key: 'display', label: 'Tipe Layout', type: 'select', group: 'layout', responsive: true, defaultValue: 'flex', options: [{ label: 'Block (Tumpuk)', value: 'block' }, { label: 'Flexbox', value: 'flex' }, { label: 'Grid (Kolom)', value: 'grid' }] },
       { key: 'gridColumns', label: 'Kolom Grid (Contoh: 1fr 1fr)', type: 'text', group: 'layout', responsive: true },
       { key: 'flexDirection', label: 'Arah Flexbox', type: 'select', group: 'layout', responsive: true, defaultValue: 'column', options: [{ label: 'Baris (Kiri-Kanan)', value: 'row' }, { label: 'Kolom (Atas-Bawah)', value: 'column' }] },
@@ -60,9 +58,19 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
       { key: 'alignItems', label: 'Perataan Vertikal', type: 'select', group: 'layout', responsive: true, options: [{ label: 'Atas', value: 'flex-start' }, { label: 'Tengah', value: 'center' }, { label: 'Bawah', value: 'flex-end' }, { label: 'Tarik Penuh', value: 'stretch' }] },
       { key: 'justifyContent', label: 'Perataan Horizontal', type: 'select', group: 'layout', responsive: true, options: [{ label: 'Kiri', value: 'flex-start' }, { label: 'Tengah', value: 'center' }, { label: 'Kanan', value: 'flex-end' }, { label: 'Spasi Di Antara', value: 'space-between' }] },
 
+      // 2. Dimensi & Posisi (FITUR BARU)
+      { key: 'maxWidth', label: 'Max Width (Contoh: 1024px, 100%)', type: 'text', group: 'layout', responsive: true, defaultValue: '1024px' },
+      { key: 'position', label: 'Positioning', type: 'select', group: 'layout', responsive: true, defaultValue: 'relative', options: [{ label: 'Relative (Normal)', value: 'relative' }, { label: 'Absolute (Melayang)', value: 'absolute' }] },
+      { key: 'top', label: 'Top (Posisi Y)', type: 'text', group: 'layout', responsive: true },
+      { key: 'bottom', label: 'Bottom (Posisi Y)', type: 'text', group: 'layout', responsive: true },
+      { key: 'left', label: 'Left (Posisi X)', type: 'text', group: 'layout', responsive: true },
+      { key: 'right', label: 'Right (Posisi X)', type: 'text', group: 'layout', responsive: true },
+      { key: 'transform', label: 'Transform (Contoh: translateX(-50%))', type: 'text', group: 'layout', responsive: true },
+      { key: 'zIndex', label: 'Z-Index (Tumpukan)', type: 'number', group: 'layout' },
+
+      // 3. Spacing (Di sini margin: 0 auto berfungsi sebagai mx-auto)
+      { key: 'margin', label: 'Margin (Pakai 0 auto untuk tengah)', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px auto' },
       { key: 'padding', label: 'Padding Dalam', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px' },
-      { key: 'marginTop', label: 'Margin Atas', type: 'text', group: 'spacing', responsive: true },
-      { key: 'marginBottom', label: 'Margin Bawah', type: 'text', group: 'spacing', responsive: true },
 
       { key: 'backgroundColor', label: 'Warna Latar', type: 'color', group: 'background', defaultValue: 'transparent' },
       { key: 'borderRadius', label: 'Lengkungan Sudut (px)', type: 'number', group: 'background', responsive: true, defaultValue: 0 },

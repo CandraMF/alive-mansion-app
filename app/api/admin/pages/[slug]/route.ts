@@ -49,12 +49,9 @@ export async function PUT(
   try {
     const { slug } = await params;
     const body = await request.json();
-
-    // AMBIL SEMUA DATA (TERMASUK SEO & FONTS)
     const { title, isPublished, sections, metaTitle, metaDescription, ogImage, customFonts } = body;
 
     const updatedPage = await prisma.$transaction(async (tx) => {
-      // 1. UPDATE PAGE BESERTA SEO & FONT (Pastikan schema Prisma Anda mendukung field ini)
       const page = await tx.page.update({
         where: { slug },
         data: {
@@ -63,14 +60,12 @@ export async function PUT(
           metaTitle: metaTitle || null,
           metaDescription: metaDescription || null,
           ogImage: ogImage || null,
-          customFonts: customFonts || [] // Disimpan sebagai JSON di database
+          customFonts: customFonts || []
         }
       });
 
-      // 2. BERSIHKAN SEKSI LAMA
       await tx.section.deleteMany({ where: { pageId: page.id } });
 
-      // 3. TULIS ULANG SEKSI & BLOK
       if (sections && sections.length > 0) {
         for (let i = 0; i < sections.length; i++) {
           const sec = sections[i];
@@ -80,16 +75,14 @@ export async function PUT(
               pageId: page.id,
               name: sec.name || `Section ${i + 1}`,
               position: i,
-
-              // 🚀 SIMPAN SEMUA STYLING KE DALAM CONTENT
-              content: sec.content || {},
+              content: sec.content || {}, // 🚀 MENGGUNAKAN DYNAMIC JSON
 
               blocks: {
                 create: sec.blocks?.map((block: any, bIdx: number) => ({
                   type: block.type,
                   position: bIdx,
                   content: block.content || {},
-                  children: block.children || [],
+                  children: block.children || [], // 🚀 KRUSIAL: SIMPAN ELEMEN BERSARANG
                   variantId: block.variantId || null
                 })) || []
               }

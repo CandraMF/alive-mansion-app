@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Settings, ArrowUp, ArrowDown, Trash2, Box, AlignLeft, AlignCenter, AlignRight, AlignJustify, 
+import {
+  Settings, ArrowUp, ArrowDown, Trash2, Box, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Type, MoveHorizontal, Palette, ImageIcon, UploadCloud, Plus, XCircle, CheckCircle2, AlertTriangle, Activity, Upload,
   Loader2, ChevronDown
 } from 'lucide-react';
@@ -68,12 +68,10 @@ export default function InspectorSidebar({
 
   const renderField = (field: CMSField, sectionId: string, blockOrSection: any, parentKey?: string, index?: number) => {
     const dataKey = (field.responsive && viewMode === 'desktop') ? `${field.key}Desktop` : field.key;
-    
-    // Ambil nilai dari JSON database
+
     let val = blockOrSection.content?.[dataKey];
     if (parentKey && index !== undefined) val = blockOrSection.content?.[parentKey]?.[index]?.[dataKey];
 
-    // FITUR BARU: Jika nilai kosong atau undefined, tampilkan DEFAULT VALUE
     if (val === undefined || val === '') {
       val = field.defaultValue ?? '';
     }
@@ -157,8 +155,8 @@ export default function InspectorSidebar({
             {LabelContent}
             {val && <div className="h-20 bg-gray-200 rounded overflow-hidden relative w-full"><img src={val} alt="preview" className="w-full h-full object-cover" /></div>}
             <div className="flex gap-2 w-full min-w-0">
-              <Button variant="outline" size="sm" className="flex-1 text-[10px] h-7 min-w-0" onClick={() => setImagePickerTarget({ sectionId, blockId: blockOrSection.id, key: dataKey, parentKey, index })}><ImageIcon className="w-3 h-3 mr-1 shrink-0" /> <span className="truncate">Katalog</span></Button>
-              <Button variant="outline" size="sm" className="flex-1 text-[10px] h-7 min-w-0" onClick={() => { setUploadTarget({ sectionId, blockId: blockOrSection.id, key: dataKey, parentKey, index }); fileInputRef.current?.click(); }} disabled={isUploading}><UploadCloud className="w-3 h-3 mr-1 shrink-0" /> <span className="truncate">Upload</span></Button>
+              <Button variant="outline" size="sm" className="flex-1 text-[10px] h-7 min-w-0" onClick={() => setImagePickerTarget({ sectionId: activeItem.sectionId || activeData.id, blockId: blockOrSection.id, key: dataKey, parentKey, index })}><ImageIcon className="w-3 h-3 mr-1 shrink-0" /> <span className="truncate">Katalog</span></Button>
+              <Button variant="outline" size="sm" className="flex-1 text-[10px] h-7 min-w-0" onClick={() => { setUploadTarget({ sectionId: activeItem.sectionId || activeData.id, blockId: blockOrSection.id, key: dataKey, parentKey, index }); fileInputRef.current?.click(); }} disabled={isUploading}><UploadCloud className="w-3 h-3 mr-1 shrink-0" /> <span className="truncate">Upload</span></Button>
             </div>
           </div>
         );
@@ -168,7 +166,7 @@ export default function InspectorSidebar({
             {LabelContent}
             <div className="flex items-center gap-2 w-full">
               <Input value={val || ''} readOnly placeholder="Pilih Produk..." className="h-8 text-xs bg-white flex-1 font-mono text-gray-500 min-w-0" />
-              <Button variant="default" size="sm" className="h-8 text-[10px] whitespace-nowrap shrink-0 bg-indigo-600 hover:bg-indigo-700" onClick={() => setPickerTarget({ sectionId, blockId: blockOrSection.id, key: dataKey, parentKey, index })}>Pilih</Button>
+              <Button variant="default" size="sm" className="h-8 text-[10px] whitespace-nowrap shrink-0 bg-indigo-600 hover:bg-indigo-700" onClick={() => setPickerTarget({ sectionId: activeItem.sectionId || activeData.id, blockId: blockOrSection.id, key: dataKey, parentKey, index })}>Pilih</Button>
             </div>
           </div>
         );
@@ -200,15 +198,16 @@ export default function InspectorSidebar({
     }
   };
 
-  // FITUR BARU: Default value untuk dimensi Section
+  // FITUR BARU: MURNI HANYA UNTUK SECTION (Background Luar, Tinggi, Overflows)
   const SECTION_FIELDS: CMSField[] = [
-    { key: 'maxWidth', label: 'Max Width', type: 'text', group: 'layout', responsive: true, defaultValue: '1280px' },
-    { key: 'minWidth', label: 'Min Width', type: 'text', group: 'layout', responsive: true, defaultValue: 'auto' },
-    { key: 'minHeight', label: 'Min Height', type: 'text', group: 'layout', responsive: true, defaultValue: 'auto' },
-    { key: 'maxHeight', label: 'Max Height', type: 'text', group: 'layout', responsive: true, defaultValue: 'none' },
-    { key: 'padding', label: 'Padding (CSS)', type: 'text', group: 'spacing', responsive: true, defaultValue: '80px 20px' },
-    { key: 'margin', label: 'Margin (CSS)', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px auto' },
-    { key: 'backgroundColor', label: 'Latar Belakang', type: 'color', group: 'background', defaultValue: 'transparent' },
+    { key: 'minHeight', label: 'Tinggi Minimum (auto, 100vh)', type: 'text', group: 'layout', responsive: true, defaultValue: 'auto' },
+    { key: 'overflow', label: 'Overflow (Potong isi keluar batas)', type: 'select', group: 'layout', defaultValue: 'hidden', options: [{ label: 'Terlihat (Visible)', value: 'visible' }, { label: 'Terpotong (Hidden)', value: 'hidden' }, { label: 'Auto Scroll', value: 'auto' }] },
+
+    { key: 'padding', label: 'Padding Dalam (CSS)', type: 'text', group: 'spacing', responsive: true, defaultValue: '80px 20px' },
+
+    { key: 'backgroundColor', label: 'Warna Latar', type: 'color', group: 'background', defaultValue: 'transparent' },
+    { key: 'backgroundImage', label: 'Gambar Latar (Background Image)', type: 'image', group: 'background' },
+    { key: 'backgroundVideo', label: 'Video Latar (URL .mp4)', type: 'text', group: 'background' }, // Mendukung input link mp4 eksternal/internal
   ];
 
   return (
@@ -248,7 +247,7 @@ export default function InspectorSidebar({
                   { id: 'typography', title: 'Typography', icon: Type },
                   { id: 'background', title: 'Background', icon: Palette }
                 ].map((group) => {
-                  const fields = activeItem.type === 'block' 
+                  const fields = activeItem.type === 'block'
                     ? (CMS_COMPONENTS[activeData.type]?.fields.filter(f => f.group === group.id) || [])
                     : (SECTION_FIELDS.filter(f => f.group === group.id) || []);
 
@@ -324,7 +323,7 @@ export default function InspectorSidebar({
                           <div className="w-6 h-6 bg-blue-50 rounded text-blue-600 flex items-center justify-center font-serif text-[10px] font-bold shrink-0">Aa</div>
                           <p className="text-[10px] font-bold truncate">{f.name}</p>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 shrink-0" onClick={() => {/* Logika hapus */}}><Trash2 className="w-3 h-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 shrink-0" onClick={() => {/* Logika hapus */ }}><Trash2 className="w-3 h-3" /></Button>
                       </div>
                     ))}
                   </div>

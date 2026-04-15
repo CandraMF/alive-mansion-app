@@ -2,7 +2,11 @@
 
 import React, { useState } from 'react';
 import { cn } from "@/lib/utils";
+import { CMS_COMPONENTS } from '@/lib/cms-registry';
 
+// ==========================================
+// SUB-KOMPONEN: SMART PRODUCT CARD (PUBLIC)
+// ==========================================
 const PublicProductCard = ({ item, index }: { item: any, index: number }) => {
   const [isHovered, setIsHovered] = useState(false);
   const displayImage = isHovered && item.hoverImage ? item.hoverImage : item.primaryImage;
@@ -16,7 +20,11 @@ const PublicProductCard = ({ item, index }: { item: any, index: number }) => {
     >
       <div className="aspect-[3/4] bg-gray-100 overflow-hidden relative mb-3">
         {displayImage ? (
-          <img src={displayImage} alt={`Product ${index}`} className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105" />
+          <img
+            src={displayImage}
+            alt={`Product ${index}`}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105"
+          />
         ) : null}
       </div>
       <div className="text-center">
@@ -28,85 +36,94 @@ const PublicProductCard = ({ item, index }: { item: any, index: number }) => {
   );
 };
 
+// ==========================================
+// RECURSIVE ENGINE: ATOMIC PUBLIC RENDERER
+// ==========================================
 const AtomicPublicRenderer = ({ block }: { block: any }) => {
   const data = block.content || {};
   const atomClass = `atom-${block.id}`;
   const wrapperClass = `wrap-${block.id}`;
   const imgClass = `img-${block.id}`;
 
+  const getDefault = (key: string) => CMS_COMPONENTS[block.type]?.fields?.find(f => f.key === key)?.defaultValue;
+  const getValue = (key: string) => (data[key] !== undefined && data[key] !== '') ? data[key] : getDefault(key);
+
   const baseInlineStyle: React.CSSProperties = {
-    color: data.color || (block.type === 'ATOMIC_TEXT' ? '#4B5563' : '#111827'),
-    fontFamily: data.fontFamily || 'inherit',
-    fontWeight: data.fontWeight || (block.type === 'ATOMIC_HEADING' ? '700' : '400'),
+    color: getValue('color') || (block.type === 'ATOMIC_TEXT' ? '#4B5563' : '#111827'),
+    fontFamily: getValue('fontFamily') || 'inherit',
+    fontWeight: getValue('fontWeight') || (block.type === 'ATOMIC_HEADING' ? '700' : '400'),
   };
 
   if (block.type === 'ATOMIC_BUTTON') {
-    baseInlineStyle.backgroundColor = data.backgroundColor || '#000000';
-    baseInlineStyle.color = data.textColor || '#ffffff';
-    baseInlineStyle.borderColor = data.borderColor || 'transparent';
-    baseInlineStyle.borderWidth = data.borderWidth ? `${data.borderWidth}px` : '0px';
-    baseInlineStyle.borderStyle = data.borderWidth ? 'solid' : 'none';
+    baseInlineStyle.backgroundColor = getValue('backgroundColor') || '#000000';
+    baseInlineStyle.color = getValue('textColor') || '#ffffff';
+    baseInlineStyle.borderColor = getValue('borderColor') || 'transparent';
+    const bw = getValue('borderWidth');
+    baseInlineStyle.borderWidth = bw ? `${bw}px` : '0px';
+    baseInlineStyle.borderStyle = bw ? 'solid' : 'none';
   }
 
   if (block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') {
-    baseInlineStyle.backgroundColor = data.backgroundColor || 'transparent';
+    baseInlineStyle.backgroundColor = getValue('backgroundColor') || 'transparent';
   }
 
   let mob = ''; let desk = ''; let wrapMob = ''; let wrapDesk = ''; let imgMob = ''; let imgDesk = '';
 
   const addCss = (key: string, prop: string, suffix = '') => {
-    if (data[key] !== undefined && data[key] !== '') mob += `${prop}: ${data[key]}${suffix};\n`;
+    const v = getValue(key);
+    if (v !== undefined && v !== '') mob += `${prop}: ${v}${suffix};\n`;
     if (data[`${key}Desktop`] !== undefined && data[`${key}Desktop`] !== '') desk += `${prop}: ${data[`${key}Desktop`]}${suffix};\n`;
   };
 
-  addCss('marginTop', 'margin-top', 'px');
-  if (block.type !== 'ATOMIC_CONTAINER' && block.type !== 'ATOMIC_PRODUCT_CAROUSEL' && data.marginBottom === undefined) mob += `margin-bottom: 16px;\n`;
-  else addCss('marginBottom', 'margin-bottom', 'px');
+  addCss('position', 'position');
+  addCss('top', 'top');
+  addCss('bottom', 'bottom');
+  addCss('left', 'left');
+  addCss('right', 'right');
+  addCss('transform', 'transform');
+  addCss('zIndex', 'z-index');
+  addCss('maxWidth', 'max-width');
 
+  addCss('marginTop', 'margin-top', 'px');
+  addCss('marginBottom', 'margin-bottom', 'px');
+  addCss('margin', 'margin');
   addCss('padding', 'padding');
   addCss('borderRadius', 'border-radius', 'px');
 
   if (block.type === 'ATOMIC_CONTAINER') {
-    mob += `display: ${data.display || 'flex'};\n`;
+    mob += `display: ${getValue('display') || 'flex'};\n`;
     if (data.displayDesktop) desk += `display: ${data.displayDesktop};\n`;
     if (data.display === 'grid' || data.displayDesktop === 'grid') addCss('gridColumns', 'grid-template-columns');
-    mob += `flex-direction: ${data.flexDirection || 'column'};\n`;
+    mob += `flex-direction: ${getValue('flexDirection') || 'column'};\n`;
     if (data.flexDirectionDesktop) desk += `flex-direction: ${data.flexDirectionDesktop};\n`;
-    mob += `gap: ${data.gap !== undefined ? data.gap : 16}px;\n`;
-    if (data.gapDesktop !== undefined) desk += `gap: ${data.gapDesktop}px;\n`;
+    addCss('gap', 'gap', 'px');
     addCss('alignItems', 'align-items');
     addCss('justifyContent', 'justify-content');
   }
 
   if (block.type === 'ATOMIC_HEADING') {
-    mob += `font-size: ${data.fontSize || 36}px;\n`;
-    if (data.fontSizeDesktop) desk += `font-size: ${data.fontSizeDesktop}px;\n`;
+    addCss('fontSize', 'font-size', 'px');
     addCss('letterSpacing', 'letter-spacing', 'px');
     addCss('align', 'text-align');
   }
 
   if (block.type === 'ATOMIC_TEXT') {
-    mob += `font-size: ${data.fontSize || 16}px;\n`;
-    if (data.fontSizeDesktop) desk += `font-size: ${data.fontSizeDesktop}px;\n`;
-    mob += `line-height: ${data.lineHeight || 1.6};\n`;
-    if (data.lineHeightDesktop) desk += `line-height: ${data.lineHeightDesktop};\n`;
+    addCss('fontSize', 'font-size', 'px');
+    addCss('lineHeight', 'line-height');
     addCss('align', 'text-align');
   }
 
   if (block.type === 'ATOMIC_IMAGE') {
-    mob += `width: ${data.width || '100%'};\n`;
-    if (data.widthDesktop) desk += `width: ${data.widthDesktop};\n`;
-    mob += `height: ${data.height || 'auto'};\n`;
-    if (data.heightDesktop) desk += `height: ${data.heightDesktop};\n`;
-    imgMob += `width: 100%; height: 100%; object-fit: ${data.objectFit || 'cover'};\n`;
+    addCss('width', 'width');
+    addCss('height', 'height');
+    imgMob += `width: 100%; height: 100%; object-fit: ${getValue('objectFit') || 'cover'};\n`;
     if (data.objectFitDesktop) imgDesk += `object-fit: ${data.objectFitDesktop};\n`;
   }
 
   if (block.type === 'ATOMIC_BUTTON') {
-    mob += `font-size: ${data.fontSize || 14}px;\n`;
-    if (data.fontSizeDesktop) desk += `font-size: ${data.fontSizeDesktop}px;\n`;
-    if (!data.padding && !data.paddingDesktop) mob += `padding: 12px 24px;\n`;
-    wrapMob += `display: flex; width: 100%; justify-content: ${data.align || 'flex-start'};\n`;
+    addCss('fontSize', 'font-size', 'px');
+    if (!data.padding && !data.paddingDesktop) mob += `padding: ${getValue('padding') || '12px 24px'};\n`;
+    wrapMob += `display: flex; width: 100%; justify-content: ${getValue('align') || 'flex-start'};\n`;
     if (data.alignDesktop) wrapDesk += `justify-content: ${data.alignDesktop};\n`;
   }
 
@@ -122,7 +139,8 @@ const AtomicPublicRenderer = ({ block }: { block: any }) => {
   `;
 
   return (
-    <div className={cn((block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') ? "w-full" : "w-full")}>
+    // 🚀 FITUR: CABUT "w-full" JIKA BUKAN CONTAINER!
+    <div className={cn((block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') ? "w-full" : "")}>
       <style dangerouslySetInnerHTML={{ __html: injectedCSS }} />
 
       {block.type === 'ATOMIC_CONTAINER' && (
@@ -141,8 +159,9 @@ const AtomicPublicRenderer = ({ block }: { block: any }) => {
         </div>
       )}
 
-      {block.type === 'ATOMIC_HEADING' && React.createElement(data.tag || 'h2', { className: cn(atomClass, "leading-tight"), style: baseInlineStyle }, data.text || '')}
-      {block.type === 'ATOMIC_TEXT' && <div className={cn(atomClass)} style={baseInlineStyle}>{data.text || ''}</div>}
+      {block.type === 'ATOMIC_HEADING' && React.createElement(getValue('tag') || 'h2', { className: cn(atomClass, "leading-tight"), style: baseInlineStyle }, getValue('text') || '')}
+
+      {block.type === 'ATOMIC_TEXT' && <div className={cn(atomClass)} style={baseInlineStyle}>{getValue('text') || ''}</div>}
 
       {block.type === 'ATOMIC_IMAGE' && data.url && (
         <div className={cn(atomClass, "relative overflow-hidden")} style={baseInlineStyle}>
@@ -152,8 +171,8 @@ const AtomicPublicRenderer = ({ block }: { block: any }) => {
 
       {block.type === 'ATOMIC_BUTTON' && (
         <div className={cn(wrapperClass, "w-full")}>
-          <a href={data.url || '#'} className={cn(atomClass, "font-bold uppercase tracking-widest inline-flex items-center text-center transition-opacity hover:opacity-80")} style={baseInlineStyle}>
-            {data.label || 'KLIK DI SINI'}
+          <a href={getValue('url') || '#'} className={cn(atomClass, "font-bold uppercase tracking-widest inline-flex items-center text-center transition-opacity hover:opacity-80")} style={baseInlineStyle}>
+            {getValue('label') || 'KLIK DI SINI'}
           </a>
         </div>
       )}
@@ -188,23 +207,30 @@ export default function PublicRenderer({ pageData }: { pageData: any }) {
       )}
 
       {pageData.sections.map((section: any) => {
-        // FITUR BARU: Menarik CSS Murni dari section.content (Sama seperti Admin Preview)
         const secData = section.content || {};
+
+        const bgImageStyle = secData.backgroundImage ? { backgroundImage: `url(${secData.backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {};
 
         return (
           <section
             key={section.id}
             style={{
               backgroundColor: secData.backgroundColor || 'transparent',
-              maxWidth: secData.maxWidth || '1280px',
-              minWidth: secData.minWidth || 'auto',
-              minHeight: secData.minHeight || 'auto',
-              maxHeight: secData.maxHeight || 'none',
-              padding: secData.padding || '80px 20px',
-              margin: secData.margin || '0px auto',
+              minHeight: secData.minHeight !== undefined && secData.minHeight !== '' ? secData.minHeight : 'auto',
+              padding: secData.padding !== undefined && secData.padding !== '' ? secData.padding : '80px 20px',
+              overflow: secData.overflow || 'hidden',
+              ...bgImageStyle
             }}
-            className="relative flex flex-col w-full mx-auto"
+            className="relative flex flex-col w-full"
           >
+            {secData.backgroundVideo && (
+              <video
+                src={secData.backgroundVideo}
+                autoPlay loop muted playsInline
+                className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
+              />
+            )}
+
             <div className="w-full relative z-20 flex flex-col h-full flex-1">
               {section.blocks.map((block: any) => (
                 <AtomicPublicRenderer key={block.id} block={block} />
