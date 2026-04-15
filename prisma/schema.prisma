@@ -155,16 +155,10 @@ model Section {
   pageId String
   page   Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
-  name String
+  name     String
+  position Int    @default(0)
 
-  width           String? @default("max-w-7xl")
-  customWidth     String?
-  minHeight       String? @default("auto")
-  customHeight    String?
-  paddingY        String? @default("py-20")
-  backgroundColor String? @default("transparent")
-
-  position Int @default(0)
+  content Json @default("{}")
 
   blocks Block[]
 }

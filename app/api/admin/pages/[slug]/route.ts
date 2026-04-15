@@ -79,20 +79,17 @@ export async function PUT(
             data: {
               pageId: page.id,
               name: sec.name || `Section ${i + 1}`,
-              width: sec.width,
-              customWidth: sec.customWidth,
-              minHeight: sec.minHeight,
-              customHeight: sec.customHeight,
-              paddingY: sec.paddingY,
-              backgroundColor: sec.backgroundColor,
               position: i,
+
+              // 🚀 SIMPAN SEMUA STYLING KE DALAM CONTENT
+              content: sec.content || {},
 
               blocks: {
                 create: sec.blocks?.map((block: any, bIdx: number) => ({
                   type: block.type,
                   position: bIdx,
                   content: block.content || {},
-                  children: block.children || [], // PENTING: Simpan struktur anak (recursive) sebagai JSON
+                  children: block.children || [],
                   variantId: block.variantId || null
                 })) || []
               }

@@ -3,9 +3,6 @@
 import React, { useState } from 'react';
 import { cn } from "@/lib/utils";
 
-// ==========================================
-// SUB-KOMPONEN: SMART PRODUCT CARD (PUBLIC)
-// ==========================================
 const PublicProductCard = ({ item, index }: { item: any, index: number }) => {
   const [isHovered, setIsHovered] = useState(false);
   const displayImage = isHovered && item.hoverImage ? item.hoverImage : item.primaryImage;
@@ -19,11 +16,7 @@ const PublicProductCard = ({ item, index }: { item: any, index: number }) => {
     >
       <div className="aspect-[3/4] bg-gray-100 overflow-hidden relative mb-3">
         {displayImage ? (
-          <img
-            src={displayImage}
-            alt={`Product ${index}`}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105"
-          />
+          <img src={displayImage} alt={`Product ${index}`} className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105" />
         ) : null}
       </div>
       <div className="text-center">
@@ -35,16 +28,12 @@ const PublicProductCard = ({ item, index }: { item: any, index: number }) => {
   );
 };
 
-// ==========================================
-// RECURSIVE ENGINE: ATOMIC PUBLIC RENDERER
-// ==========================================
 const AtomicPublicRenderer = ({ block }: { block: any }) => {
   const data = block.content || {};
   const atomClass = `atom-${block.id}`;
   const wrapperClass = `wrap-${block.id}`;
   const imgClass = `img-${block.id}`;
 
-  // 1. INLINE STYLE (Hanya warna & font)
   const baseInlineStyle: React.CSSProperties = {
     color: data.color || (block.type === 'ATOMIC_TEXT' ? '#4B5563' : '#111827'),
     fontFamily: data.fontFamily || 'inherit',
@@ -63,7 +52,6 @@ const AtomicPublicRenderer = ({ block }: { block: any }) => {
     baseInlineStyle.backgroundColor = data.backgroundColor || 'transparent';
   }
 
-  // 2. DYNAMIC CSS BUILDER (Responsif Murni)
   let mob = ''; let desk = ''; let wrapMob = ''; let wrapDesk = ''; let imgMob = ''; let imgDesk = '';
 
   const addCss = (key: string, prop: string, suffix = '') => {
@@ -135,7 +123,6 @@ const AtomicPublicRenderer = ({ block }: { block: any }) => {
 
   return (
     <div className={cn((block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') ? "w-full" : "w-full")}>
-      {/* 3. INJEKSI CSS KE DOM (PUBLIC) */}
       <style dangerouslySetInnerHTML={{ __html: injectedCSS }} />
 
       {block.type === 'ATOMIC_CONTAINER' && (
@@ -155,7 +142,6 @@ const AtomicPublicRenderer = ({ block }: { block: any }) => {
       )}
 
       {block.type === 'ATOMIC_HEADING' && React.createElement(data.tag || 'h2', { className: cn(atomClass, "leading-tight"), style: baseInlineStyle }, data.text || '')}
-
       {block.type === 'ATOMIC_TEXT' && <div className={cn(atomClass)} style={baseInlineStyle}>{data.text || ''}</div>}
 
       {block.type === 'ATOMIC_IMAGE' && data.url && (
@@ -185,7 +171,6 @@ export default function PublicRenderer({ pageData }: { pageData: any }) {
 
   return (
     <div className="w-full bg-white text-black min-h-screen overflow-x-hidden font-sans flex flex-col">
-      {/* GLOBAL FONTS & UTILS */}
       <style dangerouslySetInnerHTML={{
         __html: `
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Playfair+Display:wght@400;500;700;900&family=Poppins:wght@400;500;700;900&display=swap');
@@ -202,27 +187,23 @@ export default function PublicRenderer({ pageData }: { pageData: any }) {
         }} />
       )}
 
-      {/* MAPPING SECTIONS */}
       {pageData.sections.map((section: any) => {
-        const isCustomWidth = section.width === 'custom';
-        const isCustomHeight = section.minHeight === 'custom';
-        const isFullWidth = section.width === 'w-full';
+        // FITUR BARU: Menarik CSS Murni dari section.content (Sama seperti Admin Preview)
+        const secData = section.content || {};
 
         return (
           <section
             key={section.id}
             style={{
-              backgroundColor: section.backgroundColor && section.backgroundColor !== 'transparent' ? section.backgroundColor : undefined,
-              maxWidth: isCustomWidth ? section.customWidth : undefined,
-              minHeight: isCustomHeight ? section.customHeight : undefined,
+              backgroundColor: secData.backgroundColor || 'transparent',
+              maxWidth: secData.maxWidth || '1280px',
+              minWidth: secData.minWidth || 'auto',
+              minHeight: secData.minHeight || 'auto',
+              maxHeight: secData.maxHeight || 'none',
+              padding: secData.padding || '80px 20px',
+              margin: secData.margin || '0px auto',
             }}
-            className={cn(
-              "relative flex flex-col",
-              !isCustomWidth ? (section.width || 'max-w-7xl') : 'w-full',
-              (!isFullWidth && !isCustomWidth) ? 'mx-auto' : '',
-              section.minHeight === 'min-h-screen' ? 'min-h-screen' : '',
-              section.paddingY || 'py-20'
-            )}
+            className="relative flex flex-col w-full mx-auto"
           >
             <div className="w-full relative z-20 flex flex-col h-full flex-1">
               {section.blocks.map((block: any) => (

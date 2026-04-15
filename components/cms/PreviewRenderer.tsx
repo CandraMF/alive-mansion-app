@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { cn } from "@/lib/utils";
 import { Plus, Box, Layout, Settings, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,40 +8,27 @@ import { CMS_COMPONENTS } from '@/lib/cms-registry';
 
 // ==========================================
 // SUB-KOMPONEN: SMART PRODUCT CARD
-// Menangani logika hover per item produk
 // ==========================================
 const SmartProductCard = ({ item, index }: { item: any, index: number }) => {
   const [isHovered, setIsHovered] = useState(false);
-  
-  // Logika pergantian gambar saat hover
   const displayImage = isHovered && item.hoverImage ? item.hoverImage : item.primaryImage;
 
   return (
-    <div 
+    <div
       className="snap-start shrink-0 w-[80vw] md:w-[250px] group/card"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="aspect-[3/4] bg-gray-100 overflow-hidden relative mb-3">
         {displayImage ? (
-          <img 
-            src={displayImage} 
-            alt={`Product ${index}`} 
-            className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105" 
-          />
+          <img src={displayImage} alt={`Product ${index}`} className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105" />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-400 font-bold uppercase tracking-widest border border-dashed border-gray-200">
-            No Image
-          </div>
+          <div className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-400 font-bold uppercase tracking-widest border border-dashed border-gray-200">No Image</div>
         )}
       </div>
       <div className="text-center">
-        <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1">
-          {item.variantId ? (isHovered ? 'Quick View' : 'Product Selected') : `Product Item ${index + 1}`}
-        </h4>
-        <p className="text-[9px] text-gray-400 uppercase tracking-widest">
-          {item.variantId || 'None selected'}
-        </p>
+        <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1">{item.variantId ? (isHovered ? 'Quick View' : 'Product Selected') : `Product Item ${index + 1}`}</h4>
+        <p className="text-[9px] text-gray-400 uppercase tracking-widest">{item.variantId || 'None selected'}</p>
       </div>
     </div>
   );
@@ -75,7 +62,6 @@ const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateB
     baseInlineStyle.backgroundColor = data.backgroundColor || 'transparent';
   }
 
-  // --- DYNAMIC CSS BUILDER ---
   let mob = ''; let desk = ''; let wrapMob = ''; let wrapDesk = ''; let imgMob = ''; let imgDesk = '';
 
   const addCss = (key: string, prop: string, suffix = '') => {
@@ -86,7 +72,7 @@ const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateB
   addCss('marginTop', 'margin-top', 'px');
   if (block.type !== 'ATOMIC_CONTAINER' && block.type !== 'ATOMIC_PRODUCT_CAROUSEL' && data.marginBottom === undefined) mob += `margin-bottom: 16px;\n`;
   else addCss('marginBottom', 'margin-bottom', 'px');
-  
+
   addCss('padding', 'padding');
   addCss('borderRadius', 'border-radius', 'px');
 
@@ -149,8 +135,7 @@ const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateB
     <div onClick={(e) => { e.stopPropagation(); onSelectBlock(sectionId, block.id); }} className={cn("relative transition-all cursor-pointer group/atom", (block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') ? "w-full" : "w-full", isActive ? "ring-2 ring-blue-500 ring-offset-2 z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-offset-2 z-10")}>
       <style dangerouslySetInnerHTML={{ __html: injectedCSS }} />
       {isActive && <div className="absolute -top-7 left-0 bg-blue-500 text-white text-[9px] font-bold px-2 py-1 rounded-t-md uppercase tracking-widest shadow-md z-40">{CMS_COMPONENTS[block.type]?.name || 'Unknown'}</div>}
-      
-      {/* 1. LAYOUT: CONTAINER */}
+
       {block.type === 'ATOMIC_CONTAINER' && (
         <div className={cn(atomClass, "transition-all relative", (isActive || !block.children?.length) && "min-h-[100px] border-2 border-dashed border-gray-300")} style={baseInlineStyle}>
           {block.children?.map((child: any) => <AtomicRenderer key={child.id} block={child} sectionId={sectionId} activeItem={activeItem} onSelectBlock={onSelectBlock} onUpdateBlockContent={onUpdateBlockContent} onAddBlockInside={onAddBlockInside} />)}
@@ -158,7 +143,6 @@ const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateB
         </div>
       )}
 
-      {/* 2. SMART ATOM: PRODUCT CAROUSEL */}
       {block.type === 'ATOMIC_PRODUCT_CAROUSEL' && (
         <div className={cn(atomClass, "transition-all w-full overflow-hidden")} style={baseInlineStyle}>
           <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 px-4 pb-4 no-scrollbar">
@@ -169,19 +153,29 @@ const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateB
         </div>
       )}
 
-      {/* 3. BASIC ATOMS */}
       {block.type === 'ATOMIC_HEADING' && React.createElement(data.tag || 'h2', { className: cn(atomClass, "transition-all leading-tight"), style: baseInlineStyle }, data.text || 'Heading Baru')}
       {block.type === 'ATOMIC_TEXT' && <div className={cn(atomClass, "transition-all")} style={baseInlineStyle}>{data.text || 'Teks paragraf baru.'}</div>}
+
       {block.type === 'ATOMIC_IMAGE' && (
-         <div className={cn(atomClass, "bg-gray-100 relative overflow-hidden transition-all", !data.url && "border-2 border-dashed border-gray-300 flex items-center justify-center aspect-video")} style={baseInlineStyle}>
-           {data.url ? <img src={data.url} alt="atomic" className={cn(imgClass, "transition-all")} /> : <div className="text-gray-400 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 h-full w-full"><ImageIcon className="w-4 h-4"/> Area Gambar</div>}
-         </div>
-      )}
-      {block.type === 'ATOMIC_BUTTON' && (
-        <div className={cn(wrapperClass, "w-full transition-all")}>
-           <a href={data.url || '#'} className={cn(atomClass, "font-bold uppercase tracking-widest transition-all inline-flex items-center text-center")} style={baseInlineStyle}>{data.label || 'KLIK DI SINI'}</a>
+        <div className={cn(atomClass, "bg-gray-100 relative overflow-hidden transition-all", !data.url && "border-2 border-dashed border-gray-300 flex items-center justify-center aspect-video")} style={baseInlineStyle}>
+          {data.url ? <img src={data.url} alt="atomic" className={cn(imgClass, "transition-all")} /> : <div className="text-gray-400 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 h-full w-full"><ImageIcon className="w-4 h-4" /> Area Gambar</div>}
         </div>
       )}
+
+      {/* FITUR BARU: Mencegah Klik (Navigation) saat Preview di Admin */}
+      {block.type === 'ATOMIC_BUTTON' && (
+        <div className={cn(wrapperClass, "w-full transition-all")}>
+          <a
+            href={data.url || '#'}
+            onClick={(e) => e.preventDefault()} // Mencegah reload/navigasi di iframe admin
+            className={cn(atomClass, "font-bold uppercase tracking-widest transition-all inline-flex items-center text-center")}
+            style={baseInlineStyle}
+          >
+            {data.label || 'KLIK DI SINI'}
+          </a>
+        </div>
+      )}
+
       {block.type === 'ATOMIC_SPACER' && <div className={cn(atomClass, "w-full transition-all", isActive ? "bg-blue-100/50 striped-bg" : "bg-transparent")}><div className="w-full h-full flex items-center justify-center text-[8px] font-mono text-blue-400 uppercase opacity-0 group-hover/atom:opacity-100">Spacer</div></div>}
     </div>
   )
@@ -226,24 +220,24 @@ export default function PreviewRenderer({
 
       {sections.map((section: any, sIdx: number) => {
         const isSectionActive = activeItem?.type === 'section' && activeItem.id === section.id;
-        const isCustomWidth = section.width === 'custom';
-        const isCustomHeight = section.minHeight === 'custom';
-        const isFullWidth = section.width === 'w-full';
+
+        // FITUR BARU: Menarik CSS murni dari section.content
+        const secData = section.content || {};
 
         return (
           <section key={section.id} onClick={(e) => { e.stopPropagation(); if (onSelectSection) onSelectSection(section.id); }}
             style={{
-              backgroundColor: section.backgroundColor && section.backgroundColor !== 'transparent' ? section.backgroundColor : undefined,
-              maxWidth: isCustomWidth ? section.customWidth : undefined,
-              minHeight: isCustomHeight ? section.customHeight : undefined,
+              backgroundColor: secData.backgroundColor || 'transparent',
+              maxWidth: secData.maxWidth || '1280px',
+              minWidth: secData.minWidth || 'auto',
+              minHeight: secData.minHeight || 'auto',
+              maxHeight: secData.maxHeight || 'none',
+              padding: secData.padding || '80px 20px',
+              margin: secData.margin || '0px auto',
             }}
             className={cn(
-              "relative group/section transition-all duration-200 cursor-pointer flex flex-col",
-              isSectionActive ? "ring-4 ring-blue-500 ring-inset z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-inset hover:bg-blue-50/10 z-10",
-              !isCustomWidth ? (section.width || 'max-w-7xl') : 'w-full',
-              (!isFullWidth && !isCustomWidth) ? 'mx-auto' : '',
-              section.minHeight === 'min-h-screen' ? 'min-h-screen' : '',
-              section.paddingY || 'py-20'
+              "relative group/section transition-all duration-200 cursor-pointer flex flex-col w-full mx-auto",
+              isSectionActive ? "ring-4 ring-blue-500 ring-inset z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-inset hover:bg-blue-50/10 z-10"
             )}
           >
             <div className={cn("absolute top-0 left-0 text-[10px] text-white font-black px-3 py-1.5 z-50 transition-all uppercase tracking-tighter flex items-center gap-1.5 rounded-br-lg shadow-sm", isSectionActive ? "bg-blue-600 opacity-100" : "bg-gray-900 opacity-0 group-hover/section:opacity-100")}><Layout className="w-3 h-3" /> {section.name || `Section ${sIdx + 1}`}</div>
