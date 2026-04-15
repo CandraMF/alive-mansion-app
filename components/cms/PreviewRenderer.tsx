@@ -10,28 +10,34 @@ import { ATOMIC_MAP } from './atoms';
 // ==========================================
 // DISPATCHER: Pusat Pendistribusi Komponen Admin
 // ==========================================
+// components/cms/PreviewRenderer.tsx
+
 const AtomicPreviewDispatcher = ({ block, sectionId, activeItem, onSelectBlock, onUpdateBlockContent, onAddBlockInside }: any) => {
   const isActive = activeItem?.type === 'block' && activeItem.id === block.id;
-
-  // 1. Cari komponen di Registry
   const Component = ATOMIC_MAP[block.type];
 
-  // 2. Jika tidak ada, kembalikan Error Fallback
-  if (!Component) {
-    return <div className="p-4 bg-red-50 text-red-500 text-xs border border-red-200 rounded">Unknown Component: {block.type}</div>;
-  }
+  // Ambil status posisi dari konten
+  const isAbsolute = block.content?.position === 'absolute';
 
-  // 3. Render Komponen yang ditemukan
+  if (!Component) return null;
+
   return (
     <div
       onClick={(e) => { e.stopPropagation(); onSelectBlock(sectionId, block.id); }}
       className={cn(
-        "relative transition-all cursor-pointer group/atom",
+        "transition-all cursor-pointer group/atom",
+        // JIKA Absolute, jangan gunakan "relative" agar dia bisa melayang keluar
+        isAbsolute ? "static" : "relative",
         (block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') ? "w-full" : "",
         isActive ? "ring-2 ring-blue-500 ring-offset-2 z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-offset-2 z-10"
       )}
     >
-      {isActive && <div className="absolute -top-7 left-0 bg-blue-500 text-white text-[9px] font-bold px-2 py-1 rounded-t-md uppercase tracking-widest shadow-md z-40">{CMS_COMPONENTS[block.type]?.name || 'Unknown'}</div>}
+      {/* Label nama komponen hanya muncul jika tidak sedang absolute agar tidak berantakan */}
+      {isActive && !isAbsolute && (
+        <div className="absolute -top-7 left-0 bg-blue-500 text-white text-[9px] font-bold px-2 py-1 rounded-t-md uppercase tracking-widest shadow-md z-40">
+          {CMS_COMPONENTS[block.type]?.name || 'Unknown'}
+        </div>
+      )}
 
       <Component
         block={block}
@@ -41,7 +47,6 @@ const AtomicPreviewDispatcher = ({ block, sectionId, activeItem, onSelectBlock, 
         onSelectBlock={onSelectBlock}
         onUpdateBlockContent={onUpdateBlockContent}
         onAddBlockInside={onAddBlockInside}
-        // Rekursif: Ajari Container cara me-render anak-anaknya!
         childrenRenderer={(child: any) => (
           <AtomicPreviewDispatcher
             key={child.id}

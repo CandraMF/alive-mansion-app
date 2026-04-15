@@ -7,17 +7,21 @@ import { ATOMIC_MAP } from './atoms';
 // ==========================================
 // DISPATCHER: Pusat Pendistribusi Komponen Publik
 // ==========================================
+
 const AtomicPublicDispatcher = ({ block }: { block: any }) => {
   const Component = ATOMIC_MAP[block.type];
+  const isAbsolute = block.content?.position === 'absolute';
 
   if (!Component) return null;
 
   return (
-    <div className={cn((block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') ? "w-full" : "")}>
+    <div className={cn(
+      isAbsolute ? "static" : "relative", // Gunakan static jika absolute agar child-nya merujuk ke Section
+      (block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') ? "w-full" : ""
+    )}>
       <Component
         block={block}
         isPublic={true}
-        // Rekursif untuk Container
         childrenRenderer={(child: any) => <AtomicPublicDispatcher key={child.id} block={child} />}
       />
     </div>

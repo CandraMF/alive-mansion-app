@@ -6,6 +6,8 @@ export function useAtomicCss(block: any) {
   const wrapperClass = `wrap-${block.id}`;
   const imgClass = `img-${block.id}`;
 
+  const isAbsolute = (data.position === 'absolute');
+
   const getDefault = (key: string) => CMS_COMPONENTS[block.type]?.fields?.find(f => f.key === key)?.defaultValue;
   const getValue = (key: string) => (data[key] !== undefined && data[key] !== '') ? data[key] : getDefault(key);
 
@@ -99,5 +101,5 @@ export function useAtomicCss(block: any) {
     }
   `;
 
-  return { atomClass, wrapperClass, imgClass, baseInlineStyle, injectedCSS, getValue };
+  return { atomClass, wrapperClass, imgClass, baseInlineStyle, injectedCSS, getValue, isAbsolute };
 }

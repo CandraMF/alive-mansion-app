@@ -9,30 +9,21 @@ export const CMS_TEMPLATES: Record<string, any> = {
   // ==========================================
   HERO_VIDEO_ABSOLUTE: {
     name: "Fullscreen Hero Video",
-    description: "Template untuk video fullscreen dengan teks melayang di bawah tengah (seperti Fall Winter 2026).",
-    icon: Video,
-    // Catatan: Setelah insert, admin perlu set Section -> Tinggi: 100vh & Background Video di Inspector Section
+    description: "Template untuk video fullscreen dengan teks melayang di bawah tengah.",
+    icon: Video, // pastikan import Video dari lucide-react
+    // FITUR BARU: Bawaan properti untuk SECTION INDUK
+    sectionContent: {
+      padding: "0px",
+      minHeight: "100vh",
+      overflow: "hidden",
+      backgroundVideo: "/cinema.mp4"
+    },
     block: {
       type: "ATOMIC_CONTAINER",
-      content: {
-        position: "absolute",
-        bottom: "64px",
-        left: "50%",
-        transform: "translateX(-50%)",
-        zIndex: 10,
-        alignItems: "center",
-        justifyContent: "center",
-        width: "100%"
-      },
+      content: { position: "absolute", bottom: "64px", left: "50%", transform: "translateX(-50%)", zIndex: 10, alignItems: "center", justifyContent: "center", width: "100%" },
       children: [
-        {
-          type: "ATOMIC_TEXT",
-          content: { text: "Fall Winter 2026", color: "#ffffff", fontSize: 12, letterSpacing: 3, align: "center", marginBottom: 8 }
-        },
-        {
-          type: "ATOMIC_BUTTON",
-          content: { label: "Explore the Collection", url: "#", textColor: "#ffffff", backgroundColor: "transparent", padding: "0px 0px 4px 0px", borderWidth: 0, borderColor: "transparent", fontSize: 12 }
-        }
+        { type: "ATOMIC_TEXT", content: { text: "Fall Winter 2026", color: "#ffffff", fontSize: 12, letterSpacing: 3, align: "center", marginBottom: 8 } },
+        { type: "ATOMIC_BUTTON", content: { label: "Explore the Collection", url: "#", textColor: "#ffffff", backgroundColor: "transparent", padding: "0px 0px 4px 0px", borderWidth: 0, borderColor: "transparent", fontSize: 12 } }
       ]
     }
   },

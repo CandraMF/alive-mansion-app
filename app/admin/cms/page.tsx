@@ -214,12 +214,25 @@ export default function CMSBuilderPage() {
     if (!targetSectionId) return;
     const template = CMS_TEMPLATES[templateKey];
     if (!template) return;
+
+    // Fungsi bawaan Anda untuk generate ID
     const newBlock = injectTemplate(template.block);
 
     setPageData((prev: any) => {
       const newSecs = [...prev.sections];
       const secIdx = newSecs.findIndex(s => s.id === targetSectionId);
       if (secIdx === -1) return prev;
+
+      // 🚀 FITUR BARU: Suntikkan properti Section dari Template (seperti Video Background & 100vh)
+      if (template.sectionContent) {
+        newSecs[secIdx] = {
+          ...newSecs[secIdx],
+          content: {
+            ...(newSecs[secIdx].content || {}), // Pertahankan data lama jika ada
+            ...template.sectionContent          // Timpa dengan data dari template
+          }
+        };
+      }
 
       if (targetParentId) {
         const addRecursive = (blocks: any[]): any[] => {
@@ -233,6 +246,7 @@ export default function CMSBuilderPage() {
       } else {
         newSecs[secIdx] = { ...newSecs[secIdx], blocks: [...newSecs[secIdx].blocks, newBlock] };
       }
+
       return { ...prev, sections: newSecs };
     });
 
@@ -416,6 +430,7 @@ export default function CMSBuilderPage() {
       <NavigatorSidebar
         isNavigatorOpen={isNavigatorOpen}
         pageData={pageData}
+        setPageData={setPageData}
         activeItem={activeItem}
         setActiveItem={setActiveItem}
         setIsInspectorOpen={setIsInspectorOpen}
