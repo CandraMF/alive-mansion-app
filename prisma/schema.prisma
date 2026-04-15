@@ -7,16 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ==========================================
-// A. MASTER DATA (KATEGORI, WARNA, UKURAN)
-// ==========================================
+
+
+
 
 model Category {
   id        String     @id @default(cuid())
-  name      String     // Contoh: "Men", "Outerwear"
-  slug      String     @unique // Contoh: "men", "outerwear" (untuk URL)
+  name      String     
+  slug      String     @unique 
   
-  // Nested / Self-Relation untuk sub-kategori
+  
   parentId  String?    
   parent    Category?  @relation("SubCategories", fields: [parentId], references: [id])
   children  Category[] @relation("SubCategories")
@@ -29,10 +29,10 @@ model Category {
 
 model Color {
   id        String    @id @default(cuid())
-  name      String    // Contoh: "Black", "Red / White"
+  name      String    
   
-  // Fitur Array dari PostgreSQL: Bisa menyimpan banyak warna!
-  // Jika "Red / White", isinya: ["#FF0000", "#FFFFFF"]
+  
+  
   hexCodes  String[]  
   
   variants  Variant[] 
@@ -45,10 +45,10 @@ model Color {
 
 model Size {
   id        String    @id @default(cuid())
-  name      String    // Contoh: "S", "M", "OS"
+  name      String    
   
-  // sortOrder digunakan agar dropdown terurut benar (bukan abjad)
-  // Contoh: S = 1, M = 2, L = 3, OS = 99
+  
+  
   sortOrder Int       @default(0)
   
   variants  Variant[] 
@@ -58,21 +58,21 @@ model Size {
 }
 
 
-// ==========================================
-// B. TRANSAKSI & KATALOG (PRODUK, VARIAN)
-// ==========================================
+
+
+
 
 model Product {
   id          String         @id @default(cuid())
   name        String
   description String         @db.Text
-  status      String         @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
+  status      String         @default("PUBLISHED") 
   
-  // Relasi Kategori (Opsional, bisa saja produk belum punya kategori)
+  
   categoryId  String?
   category    Category?      @relation(fields: [categoryId], references: [id])
   
-  // Relasi
+  
   variants    Variant[]
   images      ProductImage[]
   
@@ -80,7 +80,7 @@ model Product {
   updatedAt   DateTime       @updatedAt
 }
 
-// --- TABEL GAMBAR PRODUK ---
+
 model ProductImage {
   id        String   @id @default(cuid())
   productId String
@@ -91,10 +91,10 @@ model ProductImage {
 
   url       String
   
-  // Menentukan jenis gambar (Contoh: "MAIN", "WITH_MODEL", "DETAIL")
+  
   category  String   @default("MAIN") 
   
-  // Tetap pertahankan position untuk urutan tampilan di galeri
+  
   position  Int      @default(0) 
   
   createdAt DateTime @default(now())
@@ -105,7 +105,7 @@ model Variant {
   productId   String
   product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   
-  // Relasi ke Master Size & Color
+  
   sizeId      String
   size        Size        @relation(fields: [sizeId], references: [id], onDelete: Restrict)
   
@@ -114,7 +114,7 @@ model Variant {
 
   isMain      Boolean     @default(false)
   
-  // Menggunakan stock (angka) jauh lebih aman untuk e-commerce
+  
   stock       Int         @default(0) 
   price       Int         @default(0)
   sku         String?     @unique 
@@ -127,9 +127,9 @@ model Variant {
   updatedAt   DateTime    @updatedAt
 }
 
-// ==========================================
-// C. PESANAN (ORDER)
-// ==========================================
+
+
+
 
 model Order {
   id            String      @id @default(cuid())
@@ -154,22 +154,26 @@ model OrderItem {
   variant   Variant  @relation(fields: [variantId], references: [id])
   
   quantity  Int
-  priceAt   Int      // Mencatat harga saat barang dibeli
+  priceAt   Int      
 }
 
-// ==========================================
-// CMS (CONTENT MANAGEMENT SYSTEM) MODELS
-// ==========================================
+
+
+
 
 model Page {
   id              String    @id @default(cuid())
-  title           String    // Nama halaman di admin
-  slug            String    @unique // URL endpoint
+  title           String    
+  slug            String    @unique 
   isPublished     Boolean   @default(false)
+  
   
   metaTitle       String?   @db.Text
   metaDescription String?   @db.Text
   ogImage         String?   @db.Text
+
+  
+  customFonts     Json?     @default("[]") 
 
   sections        Section[]
   
@@ -178,18 +182,23 @@ model Page {
 }
 
 model Section {
-  id          String    @id @default(cuid())
-  pageId      String
-  page        Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  pageId          String
+  page            Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
   
-  name        String    // Label untuk admin (misal: "Hero Banner", "Grid Best Seller")
-  layout      String    @default("CONTAINER") // Opsi: FULL_WIDTH, CONTAINER
-  paddingY    String    @default("py-12")     // Jarak atas bawah
-  background  String?   // Warna latar belakang opsional
+  name            String    
   
-  position    Int       @default(0) // Urutan section dari atas ke bawah
   
-  blocks      Block[]
+  width           String?   @default("max-w-7xl")
+  customWidth     String?
+  minHeight       String?   @default("auto")
+  customHeight    String?
+  paddingY        String?   @default("py-20")
+  backgroundColor String?   @default("transparent")
+  
+  position        Int       @default(0) 
+  
+  blocks          Block[]
 }
 
 model Block {
@@ -197,26 +206,29 @@ model Block {
   sectionId   String
   section     Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   
-  type        String    // Tipe komponen dari Registry (misal: "FEATURED_GRID", "TEXT_BLOCK")
-  position    Int       @default(0) // Urutan elemen di dalam section
+  type        String    
+  position    Int       @default(0) 
   
-  // Jantung CMS: Menyimpan data dinamis seperti text, array variantIds, dll
   content     Json      @default("{}") 
   
-  // Relasi tunggal opsional (berguna jika blok murni hanya showcase 1 varian)
+  
+  children    Json?     @default("[]")
+  
+  
   variantId   String?
   variant     Variant?  @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  
 }
 
-// ==========================================
-// GLOBAL SETTINGS (Header, Footer, Config)
-// ==========================================
+
+
+
 
 model StoreSettings {
-  // Kita hanya akan menyimpan 1 baris data di tabel ini
+  
   id        String   @id @default("global") 
   
-  // Semua struktur menu navigasi, link sosial media, dan teks footer disimpan di sini
+  
   content   Json     @default("{}") 
   
   updatedAt DateTime @updatedAt
