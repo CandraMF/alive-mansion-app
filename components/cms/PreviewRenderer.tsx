@@ -1,29 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { cn } from "@/lib/utils";
 import { Plus, Box, Layout, Settings, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CMS_COMPONENTS } from '@/lib/cms-registry';
 
+// ==========================================
+// SUB-KOMPONEN: SMART PRODUCT CARD
+// ==========================================
 const SmartProductCard = ({ item, index }: { item: any, index: number }) => {
   const [isHovered, setIsHovered] = useState(false);
   const displayImage = isHovered && item.hoverImage ? item.hoverImage : item.primaryImage;
 
   return (
     <div
-      className="snap-start shrink-0 w-[80vw] md:w-[250px] group/card"
+      // FITUR: Lebar responsif 1/5 layar dikurangi gap (sama persis dengan dummy)
+      className="snap-start shrink-0 w-[80vw] md:w-[calc(20vw-0.8rem)] group/card block"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="aspect-[3/4] bg-gray-100 overflow-hidden relative mb-3">
+      {/* FITUR: Aspect ratio 4/5 */}
+      <div className="aspect-[4/5] bg-gray-100 overflow-hidden relative mb-4">
         {displayImage ? (
           <img src={displayImage} alt={`Product ${index}`} className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105" />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-400 font-bold uppercase tracking-widest border border-dashed border-gray-200">No Image</div>
         )}
       </div>
-      <div className="text-center">
+      <div className="text-center px-2">
         <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1">{item.variantId ? (isHovered ? 'Quick View' : 'Product Selected') : `Product Item ${index + 1}`}</h4>
         <p className="text-[9px] text-gray-400 uppercase tracking-widest">{item.variantId || 'None selected'}</p>
       </div>
@@ -31,6 +36,9 @@ const SmartProductCard = ({ item, index }: { item: any, index: number }) => {
   );
 };
 
+// ==========================================
+// RECURSIVE ENGINE: ATOMIC RENDERER
+// ==========================================
 const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateBlockContent, onAddBlockInside }: any) => {
   const isActive = activeItem?.type === 'block' && activeItem.id === block.id;
   const data = block.content || {};
@@ -38,7 +46,18 @@ const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateB
   const wrapperClass = `wrap-${block.id}`;
   const imgClass = `img-${block.id}`;
 
-  // 🚀 FITUR: TARIK DEFAULT VALUE JIKA KOSONG
+  // FITUR BARU: Hooks untuk deteksi scroll indikator (Mobile)
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const scrollLeft = scrollContainerRef.current.scrollLeft;
+    const itemWidth = scrollContainerRef.current.children[0]?.clientWidth || 1;
+    const index = Math.round(scrollLeft / itemWidth);
+    setActiveIndex(index);
+  };
+
   const getDefault = (key: string) => CMS_COMPONENTS[block.type]?.fields?.find(f => f.key === key)?.defaultValue;
   const getValue = (key: string) => (data[key] !== undefined && data[key] !== '') ? data[key] : getDefault(key);
 
@@ -133,7 +152,6 @@ const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateB
   `;
 
   return (
-    // 🚀 FITUR: CABUT "w-full" JIKA BUKAN CONTAINER!
     <div
       onClick={(e) => { e.stopPropagation(); onSelectBlock(sectionId, block.id); }}
       className={cn(
@@ -152,11 +170,25 @@ const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateB
         </div>
       )}
 
+      {/* FITUR BARU: CAROUSEL DENGAN SCROLL INDICATOR */}
       {block.type === 'ATOMIC_PRODUCT_CAROUSEL' && (
         <div className={cn(atomClass, "transition-all w-full overflow-hidden")} style={baseInlineStyle}>
-          <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 px-4 pb-4 no-scrollbar">
-            {(data.items && data.items.length > 0 ? data.items : [{}, {}, {}, {}]).map((item: any, idx: number) => (
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-6 md:px-0 pb-4 no-scrollbar scroll-px-6 md:scroll-px-0"
+          >
+            {(data.items && data.items.length > 0 ? data.items : [{}, {}, {}, {}, {}]).map((item: any, idx: number) => (
               <SmartProductCard key={idx} item={item} index={idx} />
+            ))}
+          </div>
+
+          <div className="flex justify-center items-center gap-2 mt-2 md:hidden pb-4">
+            {(data.items && data.items.length > 0 ? data.items : [{}, {}, {}, {}, {}]).map((_, i) => (
+              <div
+                key={i}
+                className={`h-1 transition-all duration-300 ease-in-out ${activeIndex === i ? 'w-8 bg-black' : 'w-2 bg-gray-300'}`}
+              />
             ))}
           </div>
         </div>
@@ -231,20 +263,33 @@ export default function PreviewRenderer({
         const secData = section.content || {};
         const bgImageStyle = secData.backgroundImage ? { backgroundImage: `url(${secData.backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {};
 
+        const secClass = `sec-${section.id}`;
+        const padMob = secData.padding !== undefined && secData.padding !== '' ? secData.padding : '80px 20px';
+        const padDesk = secData.paddingDesktop !== undefined && secData.paddingDesktop !== '' ? secData.paddingDesktop : padMob;
+
+        const minHMob = secData.minHeight !== undefined && secData.minHeight !== '' ? secData.minHeight : 'auto';
+        const minHDesk = secData.minHeightDesktop !== undefined && secData.minHeightDesktop !== '' ? secData.minHeightDesktop : minHMob;
+
+        const secCSS = `
+          .${secClass} { padding: ${padMob}; min-height: ${minHMob}; }
+          @media (min-width: 768px) { .${secClass} { padding: ${padDesk}; min-height: ${minHDesk}; } }
+        `;
+
         return (
           <section key={section.id} onClick={(e) => { e.stopPropagation(); if (onSelectSection) onSelectSection(section.id); }}
             style={{
               backgroundColor: secData.backgroundColor || 'transparent',
-              minHeight: secData.minHeight !== undefined && secData.minHeight !== '' ? secData.minHeight : 'auto',
-              padding: secData.padding !== undefined && secData.padding !== '' ? secData.padding : '80px 20px',
               overflow: secData.overflow || 'hidden',
               ...bgImageStyle
             }}
             className={cn(
-              "relative group/section transition-all duration-200 cursor-pointer flex w-full",
+              secClass,
+              "relative group/section transition-all duration-200 cursor-pointer flex flex-col w-full",
               isSectionActive ? "ring-4 ring-blue-500 ring-inset z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-inset hover:bg-blue-50/10 z-10"
             )}
           >
+            <style dangerouslySetInnerHTML={{ __html: secCSS }} />
+
             {secData.backgroundVideo && (
               <video src={secData.backgroundVideo} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" />
             )}
@@ -260,7 +305,7 @@ export default function PreviewRenderer({
               })}
             </div>
 
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover/section:opacity-100 transition-all z-50">
+            <div className="flex justify-center py-6 opacity-0 group-hover/section:opacity-100 transition-all relative z-20">
               <Button size="sm" variant="outline" className="rounded-full bg-white border-blue-200 text-blue-600 hover:bg-blue-50 shadow-sm gap-2 px-6 h-9" onClick={(e) => { e.stopPropagation(); if (onAddBlock) onAddBlock(section.id); }}><Box className="w-4 h-4" /> Tambah Root Elemen</Button>
             </div>
           </section>

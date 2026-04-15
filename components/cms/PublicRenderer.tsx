@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { cn } from "@/lib/utils";
 import { CMS_COMPONENTS } from '@/lib/cms-registry';
 
@@ -14,11 +14,11 @@ const PublicProductCard = ({ item, index }: { item: any, index: number }) => {
   return (
     <a
       href={item.variantId ? `/products/${item.variantId}` : '#'}
-      className="snap-start shrink-0 w-[80vw] md:w-[250px] group/card block"
+      className="snap-start shrink-0 w-[80vw] md:w-[calc(20vw-0.8rem)] group/card block"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="aspect-[3/4] bg-gray-100 overflow-hidden relative mb-3">
+      <div className="aspect-[4/5] bg-gray-100 overflow-hidden relative mb-4">
         {displayImage ? (
           <img
             src={displayImage}
@@ -27,7 +27,7 @@ const PublicProductCard = ({ item, index }: { item: any, index: number }) => {
           />
         ) : null}
       </div>
-      <div className="text-center">
+      <div className="text-center px-2">
         <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1 text-gray-900 transition-colors group-hover/card:text-blue-600">
           {item.variantId ? 'View Product' : `Product Item ${index + 1}`}
         </h4>
@@ -44,6 +44,17 @@ const AtomicPublicRenderer = ({ block }: { block: any }) => {
   const atomClass = `atom-${block.id}`;
   const wrapperClass = `wrap-${block.id}`;
   const imgClass = `img-${block.id}`;
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const scrollLeft = scrollContainerRef.current.scrollLeft;
+    const itemWidth = scrollContainerRef.current.children[0]?.clientWidth || 1;
+    const index = Math.round(scrollLeft / itemWidth);
+    setActiveIndex(index);
+  };
 
   const getDefault = (key: string) => CMS_COMPONENTS[block.type]?.fields?.find(f => f.key === key)?.defaultValue;
   const getValue = (key: string) => (data[key] !== undefined && data[key] !== '') ? data[key] : getDefault(key);
@@ -139,7 +150,6 @@ const AtomicPublicRenderer = ({ block }: { block: any }) => {
   `;
 
   return (
-    // 🚀 FITUR: CABUT "w-full" JIKA BUKAN CONTAINER!
     <div className={cn((block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') ? "w-full" : "")}>
       <style dangerouslySetInnerHTML={{ __html: injectedCSS }} />
 
@@ -151,9 +161,22 @@ const AtomicPublicRenderer = ({ block }: { block: any }) => {
 
       {block.type === 'ATOMIC_PRODUCT_CAROUSEL' && (
         <div className={cn(atomClass, "w-full overflow-hidden")} style={baseInlineStyle}>
-          <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 px-4 pb-4 no-scrollbar">
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-6 md:px-0 pb-4 no-scrollbar scroll-px-6 md:scroll-px-0"
+          >
             {(data.items && data.items.length > 0 ? data.items : []).map((item: any, idx: number) => (
               <PublicProductCard key={idx} item={item} index={idx} />
+            ))}
+          </div>
+
+          <div className="flex justify-center items-center gap-2 mt-2 md:hidden pb-4">
+            {(data.items && data.items.length > 0 ? data.items : []).map((_, i) => (
+              <div
+                key={i}
+                className={`h-1 transition-all duration-300 ease-in-out ${activeIndex === i ? 'w-8 bg-black' : 'w-2 bg-gray-300'}`}
+              />
             ))}
           </div>
         </div>
@@ -211,18 +234,30 @@ export default function PublicRenderer({ pageData }: { pageData: any }) {
 
         const bgImageStyle = secData.backgroundImage ? { backgroundImage: `url(${secData.backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {};
 
+        const secClass = `sec-${section.id}`;
+        const padMob = secData.padding !== undefined && secData.padding !== '' ? secData.padding : '80px 20px';
+        const padDesk = secData.paddingDesktop !== undefined && secData.paddingDesktop !== '' ? secData.paddingDesktop : padMob;
+
+        const minHMob = secData.minHeight !== undefined && secData.minHeight !== '' ? secData.minHeight : 'auto';
+        const minHDesk = secData.minHeightDesktop !== undefined && secData.minHeightDesktop !== '' ? secData.minHeightDesktop : minHMob;
+
+        const secCSS = `
+          .${secClass} { padding: ${padMob}; min-height: ${minHMob}; }
+          @media (min-width: 768px) { .${secClass} { padding: ${padDesk}; min-height: ${minHDesk}; } }
+        `;
+
         return (
           <section
             key={section.id}
             style={{
               backgroundColor: secData.backgroundColor || 'transparent',
-              minHeight: secData.minHeight !== undefined && secData.minHeight !== '' ? secData.minHeight : 'auto',
-              padding: secData.padding !== undefined && secData.padding !== '' ? secData.padding : '80px 20px',
               overflow: secData.overflow || 'hidden',
               ...bgImageStyle
             }}
-            className="relative flex flex-col w-full"
+            className={cn(secClass, "relative flex flex-col w-full")}
           >
+            <style dangerouslySetInnerHTML={{ __html: secCSS }} />
+
             {secData.backgroundVideo && (
               <video
                 src={secData.backgroundVideo}
