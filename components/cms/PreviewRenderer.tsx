@@ -1,10 +1,51 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { cn } from "@/lib/utils";
 import { Plus, Box, Layout, Settings, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CMS_COMPONENTS } from '@/lib/cms-registry';
+
+// ==========================================
+// SUB-KOMPONEN: SMART PRODUCT CARD
+// Menangani logika hover per item produk
+// ==========================================
+const SmartProductCard = ({ item, index }: { item: any, index: number }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  // Logika pergantian gambar saat hover
+  const displayImage = isHovered && item.hoverImage ? item.hoverImage : item.primaryImage;
+
+  return (
+    <div 
+      className="snap-start shrink-0 w-[80vw] md:w-[250px] group/card"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="aspect-[3/4] bg-gray-100 overflow-hidden relative mb-3">
+        {displayImage ? (
+          <img 
+            src={displayImage} 
+            alt={`Product ${index}`} 
+            className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105" 
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-400 font-bold uppercase tracking-widest border border-dashed border-gray-200">
+            No Image
+          </div>
+        )}
+      </div>
+      <div className="text-center">
+        <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1">
+          {item.variantId ? (isHovered ? 'Quick View' : 'Product Selected') : `Product Item ${index + 1}`}
+        </h4>
+        <p className="text-[9px] text-gray-400 uppercase tracking-widest">
+          {item.variantId || 'None selected'}
+        </p>
+      </div>
+    </div>
+  );
+};
 
 // ==========================================
 // RECURSIVE ENGINE: ATOMIC RENDERER
@@ -12,101 +53,143 @@ import { CMS_COMPONENTS } from '@/lib/cms-registry';
 const AtomicRenderer = ({ block, sectionId, activeItem, onSelectBlock, onUpdateBlockContent, onAddBlockInside }: any) => {
   const isActive = activeItem?.type === 'block' && activeItem.id === block.id;
   const data = block.content || {};
+  const atomClass = `atom-${block.id}`;
+  const wrapperClass = `wrap-${block.id}`;
+  const imgClass = `img-${block.id}`;
 
-  const globalStyle: React.CSSProperties = {
-    marginTop: data.marginTop ? `${data.marginTop}px` : '0px',
-    marginBottom: data.marginBottom ? `${data.marginBottom}px` : (block.type === 'ATOMIC_CONTAINER' ? '0px' : '16px'),
-    textAlign: data.align as any,
+  const baseInlineStyle: React.CSSProperties = {
+    color: data.color || (block.type === 'ATOMIC_TEXT' ? '#4B5563' : '#111827'),
+    fontFamily: data.fontFamily || 'inherit',
+    fontWeight: data.fontWeight || (block.type === 'ATOMIC_HEADING' ? '700' : '400'),
   };
 
+  if (block.type === 'ATOMIC_BUTTON') {
+    baseInlineStyle.backgroundColor = data.backgroundColor || '#000000';
+    baseInlineStyle.color = data.textColor || '#ffffff';
+    baseInlineStyle.borderColor = data.borderColor || 'transparent';
+    baseInlineStyle.borderWidth = data.borderWidth ? `${data.borderWidth}px` : '0px';
+    baseInlineStyle.borderStyle = data.borderWidth ? 'solid' : 'none';
+  }
+
+  if (block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') {
+    baseInlineStyle.backgroundColor = data.backgroundColor || 'transparent';
+  }
+
+  // --- DYNAMIC CSS BUILDER ---
+  let mob = ''; let desk = ''; let wrapMob = ''; let wrapDesk = ''; let imgMob = ''; let imgDesk = '';
+
+  const addCss = (key: string, prop: string, suffix = '') => {
+    if (data[key] !== undefined && data[key] !== '') mob += `${prop}: ${data[key]}${suffix};\n`;
+    if (data[`${key}Desktop`] !== undefined && data[`${key}Desktop`] !== '') desk += `${prop}: ${data[`${key}Desktop`]}${suffix};\n`;
+  };
+
+  addCss('marginTop', 'margin-top', 'px');
+  if (block.type !== 'ATOMIC_CONTAINER' && block.type !== 'ATOMIC_PRODUCT_CAROUSEL' && data.marginBottom === undefined) mob += `margin-bottom: 16px;\n`;
+  else addCss('marginBottom', 'margin-bottom', 'px');
+  
+  addCss('padding', 'padding');
+  addCss('borderRadius', 'border-radius', 'px');
+
+  if (block.type === 'ATOMIC_CONTAINER') {
+    mob += `display: ${data.display || 'flex'};\n`;
+    if (data.displayDesktop) desk += `display: ${data.displayDesktop};\n`;
+    if (data.display === 'grid' || data.displayDesktop === 'grid') addCss('gridColumns', 'grid-template-columns');
+    mob += `flex-direction: ${data.flexDirection || 'column'};\n`;
+    if (data.flexDirectionDesktop) desk += `flex-direction: ${data.flexDirectionDesktop};\n`;
+    mob += `gap: ${data.gap !== undefined ? data.gap : 16}px;\n`;
+    if (data.gapDesktop !== undefined) desk += `gap: ${data.gapDesktop}px;\n`;
+    addCss('alignItems', 'align-items');
+    addCss('justifyContent', 'justify-content');
+  }
+
+  if (block.type === 'ATOMIC_HEADING') {
+    mob += `font-size: ${data.fontSize || 36}px;\n`;
+    if (data.fontSizeDesktop) desk += `font-size: ${data.fontSizeDesktop}px;\n`;
+    addCss('letterSpacing', 'letter-spacing', 'px');
+    addCss('align', 'text-align');
+  }
+
+  if (block.type === 'ATOMIC_TEXT') {
+    mob += `font-size: ${data.fontSize || 16}px;\n`;
+    if (data.fontSizeDesktop) desk += `font-size: ${data.fontSizeDesktop}px;\n`;
+    mob += `line-height: ${data.lineHeight || 1.6};\n`;
+    if (data.lineHeightDesktop) desk += `line-height: ${data.lineHeightDesktop};\n`;
+    addCss('align', 'text-align');
+  }
+
+  if (block.type === 'ATOMIC_IMAGE') {
+    mob += `width: ${data.width || '100%'};\n`;
+    if (data.widthDesktop) desk += `width: ${data.widthDesktop};\n`;
+    mob += `height: ${data.height || 'auto'};\n`;
+    if (data.heightDesktop) desk += `height: ${data.heightDesktop};\n`;
+    imgMob += `width: 100%; height: 100%; object-fit: ${data.objectFit || 'cover'};\n`;
+    if (data.objectFitDesktop) imgDesk += `object-fit: ${data.objectFitDesktop};\n`;
+  }
+
+  if (block.type === 'ATOMIC_BUTTON') {
+    mob += `font-size: ${data.fontSize || 14}px;\n`;
+    if (data.fontSizeDesktop) desk += `font-size: ${data.fontSizeDesktop}px;\n`;
+    if (!data.padding && !data.paddingDesktop) mob += `padding: 12px 24px;\n`;
+    wrapMob += `display: flex; width: 100%; justify-content: ${data.align || 'flex-start'};\n`;
+    if (data.alignDesktop) wrapDesk += `justify-content: ${data.alignDesktop};\n`;
+  }
+
+  const injectedCSS = `
+    .${atomClass} { ${mob} }
+    ${imgMob ? `.${imgClass} { ${imgMob} }` : ''}
+    ${wrapMob ? `.${wrapperClass} { ${wrapMob} }` : ''}
+    @media (min-width: 768px) {
+      .${atomClass} { ${desk} }
+      ${imgDesk ? `.${imgClass} { ${imgDesk} }` : ''}
+      ${wrapDesk ? `.${wrapperClass} { ${wrapDesk} }` : ''}
+    }
+  `;
+
   return (
-    <div
-      onClick={(e) => { e.stopPropagation(); onSelectBlock(sectionId, block.id); }}
-      className={cn(
-        "relative transition-all cursor-pointer group/atom",
-        block.type === 'ATOMIC_CONTAINER' ? "w-full" : "w-full",
-        isActive ? "ring-2 ring-blue-500 ring-offset-2 z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-offset-2 z-10"
-      )}
-    >
-      {isActive && (
-        <div className="absolute -top-7 left-0 bg-blue-500 text-white text-[9px] font-bold px-2 py-1 rounded-t-md uppercase tracking-widest shadow-md z-40">
-          {CMS_COMPONENTS[block.type]?.name || 'Unknown'}
-        </div>
-      )}
-
+    <div onClick={(e) => { e.stopPropagation(); onSelectBlock(sectionId, block.id); }} className={cn("relative transition-all cursor-pointer group/atom", (block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') ? "w-full" : "w-full", isActive ? "ring-2 ring-blue-500 ring-offset-2 z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-offset-2 z-10")}>
+      <style dangerouslySetInnerHTML={{ __html: injectedCSS }} />
+      {isActive && <div className="absolute -top-7 left-0 bg-blue-500 text-white text-[9px] font-bold px-2 py-1 rounded-t-md uppercase tracking-widest shadow-md z-40">{CMS_COMPONENTS[block.type]?.name || 'Unknown'}</div>}
+      
+      {/* 1. LAYOUT: CONTAINER */}
       {block.type === 'ATOMIC_CONTAINER' && (
-        <div 
-          style={{
-            ...globalStyle,
-            display: data.display || 'flex',
-            flexDirection: data.flexDirection || 'column',
-            gridTemplateColumns: data.display === 'grid' ? (data.gridColumns || '1fr 1fr') : undefined,
-            gap: data.gap ? `${data.gap}px` : '16px',
-            padding: data.padding || '20px',
-            backgroundColor: data.backgroundColor || 'transparent',
-            borderRadius: data.borderRadius ? `${data.borderRadius}px` : '0px',
-            alignItems: data.alignItems || 'flex-start',
-            justifyContent: data.justifyContent || 'flex-start'
-          }} 
-          className={cn("transition-all relative", (isActive || !block.children?.length) && "min-h-[100px] border-2 border-dashed border-gray-300")}
-        >
-          {block.children?.map((child: any) => (
-            <AtomicRenderer key={child.id} block={child} sectionId={sectionId} activeItem={activeItem} onSelectBlock={onSelectBlock} onUpdateBlockContent={onUpdateBlockContent} onAddBlockInside={onAddBlockInside} />
-          ))}
-
-          {(isActive || !block.children?.length) && (
-            <div className="w-full flex justify-center py-2 mt-4 opacity-50 hover:opacity-100 transition-opacity">
-              <Button variant="outline" size="sm" className="h-7 text-[10px] bg-white text-blue-600 border-blue-200" onClick={(e) => { e.stopPropagation(); onAddBlockInside(sectionId, block.id); }}>
-                <Plus className="w-3 h-3 mr-1" /> Masukkan Elemen
-              </Button>
-            </div>
-          )}
+        <div className={cn(atomClass, "transition-all relative", (isActive || !block.children?.length) && "min-h-[100px] border-2 border-dashed border-gray-300")} style={baseInlineStyle}>
+          {block.children?.map((child: any) => <AtomicRenderer key={child.id} block={child} sectionId={sectionId} activeItem={activeItem} onSelectBlock={onSelectBlock} onUpdateBlockContent={onUpdateBlockContent} onAddBlockInside={onAddBlockInside} />)}
+          {(isActive || !block.children?.length) && <div className="w-full flex justify-center py-2 mt-4 opacity-50 hover:opacity-100 transition-opacity"><Button variant="outline" size="sm" className="h-7 text-[10px] bg-white text-blue-600 border-blue-200" onClick={(e) => { e.stopPropagation(); onAddBlockInside(sectionId, block.id); }}><Plus className="w-3 h-3 mr-1" /> Masukkan Elemen</Button></div>}
         </div>
       )}
 
-      {/* RENDER KOMPONEN LAINNYA */}
-      <div className="w-full">
-        {block.type === 'ATOMIC_HEADING' && (
-          <div style={globalStyle}>
-            {React.createElement(data.tag || 'h2', { style: { fontSize: data.fontSize ? `${data.fontSize}px` : '36px', fontWeight: data.fontWeight || '700', color: data.color || '#111827', letterSpacing: data.letterSpacing ? `${data.letterSpacing}px` : 'normal' }, className: "transition-all leading-tight" }, data.text || 'Heading Baru')}
+      {/* 2. SMART ATOM: PRODUCT CAROUSEL */}
+      {block.type === 'ATOMIC_PRODUCT_CAROUSEL' && (
+        <div className={cn(atomClass, "transition-all w-full overflow-hidden")} style={baseInlineStyle}>
+          <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 px-4 pb-4 no-scrollbar">
+            {(data.items && data.items.length > 0 ? data.items : [{}, {}, {}, {}]).map((item: any, idx: number) => (
+              <SmartProductCard key={idx} item={item} index={idx} />
+            ))}
           </div>
-        )}
-        {block.type === 'ATOMIC_TEXT' && (
-          <div style={{ ...globalStyle, fontSize: data.fontSize ? `${data.fontSize}px` : '16px', lineHeight: data.lineHeight || '1.6', color: data.color || '#4B5563' }} className="transition-all">
-             {data.text || 'Teks paragraf baru.'}
-          </div>
-        )}
-        {block.type === 'ATOMIC_IMAGE' && (
-          <div style={globalStyle} className="w-full transition-all">
-             <div style={{ width: data.width || '100%', height: data.height || 'auto', borderRadius: data.borderRadius ? `${data.borderRadius}px` : '0px' }} className={cn("bg-gray-100 relative overflow-hidden transition-all", !data.url && "border-2 border-dashed border-gray-300 flex items-center justify-center aspect-video")}>
-               {data.url ? <img src={data.url} alt="atomic" style={{ objectFit: data.objectFit || 'cover' }} className="w-full h-full transition-all" /> : <div className="text-gray-400 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 h-full w-full"><ImageIcon className="w-4 h-4"/> Area Gambar</div>}
-             </div>
-          </div>
-        )}
-        {block.type === 'ATOMIC_BUTTON' && (
-          <div style={{...globalStyle, display: 'flex', justifyContent: data.align || 'flex-start'}} className="w-full transition-all">
-             <a href={data.url || '#'} style={{ backgroundColor: data.backgroundColor || '#000000', color: data.textColor || '#ffffff', fontSize: data.fontSize ? `${data.fontSize}px` : '14px', padding: data.padding || '12px 24px', borderRadius: data.borderRadius ? `${data.borderRadius}px` : '0px', borderWidth: data.borderWidth ? `${data.borderWidth}px` : '0px', borderColor: data.borderColor || 'transparent', borderStyle: 'solid' }} className="font-bold uppercase tracking-widest transition-all inline-flex items-center text-center">
-               {data.label || 'KLIK DI SINI'}
-             </a>
-          </div>
-        )}
-        {block.type === 'ATOMIC_SPACER' && (
-          <div style={{ height: data.height ? `${data.height}px` : '64px' }} className={cn("w-full transition-all", isActive ? "bg-blue-100/50 striped-bg" : "bg-transparent")}>
-             {isActive && <div className="w-full h-full flex items-center justify-center text-[8px] font-mono text-blue-400 uppercase">Spacer Element</div>}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* 3. BASIC ATOMS */}
+      {block.type === 'ATOMIC_HEADING' && React.createElement(data.tag || 'h2', { className: cn(atomClass, "transition-all leading-tight"), style: baseInlineStyle }, data.text || 'Heading Baru')}
+      {block.type === 'ATOMIC_TEXT' && <div className={cn(atomClass, "transition-all")} style={baseInlineStyle}>{data.text || 'Teks paragraf baru.'}</div>}
+      {block.type === 'ATOMIC_IMAGE' && (
+         <div className={cn(atomClass, "bg-gray-100 relative overflow-hidden transition-all", !data.url && "border-2 border-dashed border-gray-300 flex items-center justify-center aspect-video")} style={baseInlineStyle}>
+           {data.url ? <img src={data.url} alt="atomic" className={cn(imgClass, "transition-all")} /> : <div className="text-gray-400 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 h-full w-full"><ImageIcon className="w-4 h-4"/> Area Gambar</div>}
+         </div>
+      )}
+      {block.type === 'ATOMIC_BUTTON' && (
+        <div className={cn(wrapperClass, "w-full transition-all")}>
+           <a href={data.url || '#'} className={cn(atomClass, "font-bold uppercase tracking-widest transition-all inline-flex items-center text-center")} style={baseInlineStyle}>{data.label || 'KLIK DI SINI'}</a>
+        </div>
+      )}
+      {block.type === 'ATOMIC_SPACER' && <div className={cn(atomClass, "w-full transition-all", isActive ? "bg-blue-100/50 striped-bg" : "bg-transparent")}><div className="w-full h-full flex items-center justify-center text-[8px] font-mono text-blue-400 uppercase opacity-0 group-hover/atom:opacity-100">Spacer</div></div>}
     </div>
-  );
+  )
 };
 
-// ==========================================
-// KANVAS UTAMA
-// ==========================================
 export default function PreviewRenderer({
-  sections, activeItem, pageTitle = "Page Settings", onSelectPage, onSelectBlock, onSelectSection, onUpdateBlockContent, onAddSection, onAddBlock, onAddBlockInside
+  sections, activeItem, pageTitle = "Page Settings", customFonts = [], onSelectPage, onSelectBlock, onSelectSection, onUpdateBlockContent, onAddSection, onAddBlock, onAddBlockInside
 }: any) {
-
   const isPageActive = activeItem?.type === 'page';
 
   if (!sections || sections.length === 0) {
@@ -122,12 +205,27 @@ export default function PreviewRenderer({
 
   return (
     <div className="w-full bg-white text-black shadow-none flex flex-col pointer-events-auto min-h-screen overflow-x-hidden relative pb-32">
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Playfair+Display:wght@400;500;700;900&family=Poppins:wght@400;500;700;900&display=swap');
+          .no-scrollbar::-webkit-scrollbar { display: none; }
+          .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+          .striped-bg { background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(59, 130, 246, 0.05) 10px, rgba(59, 130, 246, 0.05) 20px); }
+        `
+      }} />
+
+      {customFonts && customFonts.length > 0 && (
+        <style dangerouslySetInnerHTML={{
+          __html: customFonts.map((f: any) => `
+            @font-face { font-family: '${f.name}'; src: url('${f.url}'); font-display: swap; }
+          `).join('\n')
+        }} />
+      )}
+
       <button onClick={(e) => { e.stopPropagation(); if (onSelectPage) onSelectPage(); }} className={cn("fixed top-0 right-0 text-[10px] text-white font-black px-4 py-2 z-[100] transition-all uppercase tracking-tighter flex items-center gap-1.5 rounded-bl-xl shadow-md cursor-pointer", isPageActive ? "bg-blue-600 opacity-100" : "bg-gray-900/90 backdrop-blur-sm opacity-60 hover:opacity-100")}><Settings className="w-3 h-3" /> {pageTitle}</button>
 
       {sections.map((section: any, sIdx: number) => {
         const isSectionActive = activeItem?.type === 'section' && activeItem.id === section.id;
-
-        // PENGATURAN SECTION BARU
         const isCustomWidth = section.width === 'custom';
         const isCustomHeight = section.minHeight === 'custom';
         const isFullWidth = section.width === 'w-full';
@@ -142,11 +240,8 @@ export default function PreviewRenderer({
             className={cn(
               "relative group/section transition-all duration-200 cursor-pointer flex flex-col",
               isSectionActive ? "ring-4 ring-blue-500 ring-inset z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-inset hover:bg-blue-50/10 z-10",
-              // Terapkan Tailwind Width Class jika bukan Custom
               !isCustomWidth ? (section.width || 'max-w-7xl') : 'w-full',
-              // Tambahkan margin auto ke tengah layaknya container jika bukan full-width
               (!isFullWidth && !isCustomWidth) ? 'mx-auto' : '',
-              // Terapkan Tailwind Height Class jika bukan Custom
               section.minHeight === 'min-h-screen' ? 'min-h-screen' : '',
               section.paddingY || 'py-20'
             )}
