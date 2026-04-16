@@ -10,13 +10,10 @@ import { ATOMIC_MAP } from './atoms';
 // ==========================================
 // DISPATCHER: Pusat Pendistribusi Komponen Admin
 // ==========================================
-// components/cms/PreviewRenderer.tsx
-
 const AtomicPreviewDispatcher = ({ block, sectionId, activeItem, onSelectBlock, onUpdateBlockContent, onAddBlockInside }: any) => {
   const isActive = activeItem?.type === 'block' && activeItem.id === block.id;
   const Component = ATOMIC_MAP[block.type];
 
-  // Ambil status posisi dari konten
   const isAbsolute = block.content?.position === 'absolute';
 
   if (!Component) return null;
@@ -26,15 +23,14 @@ const AtomicPreviewDispatcher = ({ block, sectionId, activeItem, onSelectBlock, 
       onClick={(e) => { e.stopPropagation(); onSelectBlock(sectionId, block.id); }}
       className={cn(
         "transition-all cursor-pointer group/atom",
-        // JIKA Absolute, jangan gunakan "relative" agar dia bisa melayang keluar
         isAbsolute ? "static" : "relative",
         (block.type === 'ATOMIC_CONTAINER' || block.type === 'ATOMIC_PRODUCT_CAROUSEL') ? "w-full" : "",
-        isActive ? "ring-2 ring-blue-500 ring-offset-2 z-30" : "ring-2 ring-transparent hover:ring-blue-300 hover:ring-offset-2 z-10"
+        isActive ? "outline outline-[1.5px] outline-blue-500 outline-offset-[-1px] z-30" : "outline outline-[1.5px] outline-transparent hover:outline-blue-300 outline-offset-[-1px] z-10"
       )}
     >
-      {/* Label nama komponen hanya muncul jika tidak sedang absolute agar tidak berantakan */}
+      {/* Label Inspect Element Style */}
       {isActive && !isAbsolute && (
-        <div className="absolute -top-7 left-0 bg-blue-500 text-white text-[9px] font-bold px-2 py-1 rounded-t-md uppercase tracking-widest shadow-md z-40">
+        <div className="absolute -top-6 left-[-1.5px] bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-t-sm uppercase tracking-wider shadow-sm z-40 whitespace-nowrap pointer-events-none">
           {CMS_COMPONENTS[block.type]?.name || 'Unknown'}
         </div>
       )}
@@ -131,8 +127,9 @@ export default function PreviewRenderer({
               ))}
             </div>
 
-            <div className="flex justify-center py-6 opacity-0 group-hover/section:opacity-100 transition-all relative z-20">
-              <Button size="sm" variant="outline" className="rounded-full bg-white border-blue-200 text-blue-600 hover:bg-blue-50 shadow-sm gap-2 px-6 h-9" onClick={(e) => { e.stopPropagation(); if (onAddBlock) onAddBlock(section.id); }}><Box className="w-4 h-4" /> Tambah Root Elemen</Button>
+            {/* 🔥 PERBAIKAN: Tombol sekarang Absolute melayang di atas segalanya */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover/section:opacity-100 transition-all z-50">
+              <Button size="sm" variant="outline" className="rounded-full bg-white border-blue-200 text-blue-600 hover:bg-blue-50 shadow-xl gap-2 px-6 h-9" onClick={(e) => { e.stopPropagation(); if (onAddBlock) onAddBlock(section.id); }}><Box className="w-4 h-4" /> Tambah Root Elemen</Button>
             </div>
           </section>
         );
