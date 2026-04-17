@@ -72,6 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         { name: 'All Pages', path: '/admin/pages', icon: FileText }, // <-- TAMBAHKAN INI
         { name: 'Page Builder', path: '/admin/cms', icon: LayoutDashboard },
         { name: 'Navigation', path: '/admin/navigations', icon: Globe },
+        { name: 'Theme', path: '/admin/theme', icon: Palette },
       ]
     },
     {
