@@ -4,16 +4,21 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
-interface ProductCardProps {
+export interface ProductCardProps {
   product: {
     id: string;
     name: string;
-    price: string;
+    price?: string | number;
     images: string[];
-    status: string;
-    color?: string; // Contoh: 'BLACK'
-    colorsCount?: number;
-    colorHex?: string; // Tambah ini untuk kod warna (cth: '#000000')
+    status?: string;
+    
+    // 🚀 Data Warna Baru (Wajib dikirim dari API Shop Anda)
+    allColors?: {
+      id: string;
+      name: string;
+      hexCodes: string[];
+    }[];
+    selectedColorId?: string; // Untuk menandai warna apa yang aktif di card ini
   };
 }
 
@@ -21,6 +26,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
 
+  // Auto-play gambar saat di-hover
   useEffect(() => {
     let holdTimeout: NodeJS.Timeout;
     let autoPlayInterval: NodeJS.Timeout;
@@ -40,6 +46,46 @@ export default function ProductCard({ product }: ProductCardProps) {
       clearInterval(autoPlayInterval);
     };
   }, [isHovered, product.images.length]);
+
+  // 🚀 Tentukan warna aktif (dari props, atau default ambil warna pertama)
+  const activeColorId = product.selectedColorId || product.allColors?.[0]?.id;
+  const activeColorName = product.allColors?.find(c => c.id === activeColorId)?.name || 'COLOR';
+
+  // 🚀 FUNGSI MAGIC: Render Kotak Multi-Hex / Solid
+  const renderColorBox = (color: any) => {
+    const isSelected = color.id === activeColorId;
+    const hexes = color.hexCodes || ['#000000'];
+    
+    // Jika hex lebih dari 1 (misal Hitam/Putih), buat gradient membelah vertikal!
+    let background = hexes[0];
+    if (hexes.length > 1) {
+      const stops = hexes.map((hex: string, i: number) => {
+        const start = (i / hexes.length) * 100;
+        const end = ((i + 1) / hexes.length) * 100;
+        return `${hex} ${start}%, ${hex} ${end}%`;
+      });
+      // to right = pembagian vertikal (kolom-kolom)
+      background = `linear-gradient(to right, ${stops.join(', ')})`;
+    }
+
+    return (
+      <div 
+        key={color.id}
+        className={`w-3 h-3 border transition-all duration-300 relative ${
+          isSelected ? "border-gray-900 scale-125 z-10 shadow-sm" : "border-gray-200"
+        }`}
+        style={{ background }}
+        title={color.name}
+      >
+        {/* Titik putih/hitam di tengah untuk menandai bahwa ini aktif */}
+        {isSelected && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-[3px] h-[3px] bg-white rounded-full mix-blend-difference" />
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <Link
@@ -61,8 +107,9 @@ export default function ProductCard({ product }: ProductCardProps) {
               alt={`${product.name} - View ${idx + 1}`}
               fill
               sizes="(max-width: 768px) 50vw, 25vw"
-              className={`object-cover object-center ${currentImgIndex === idx ? 'opacity-100' : 'opacity-0'
-                }`}
+              className={`object-cover object-center transition-opacity duration-700 ease-in-out ${
+                currentImgIndex === idx ? 'opacity-100' : 'opacity-0'
+              }`}
               priority={idx < 2}
             />
           ))
@@ -76,20 +123,23 @@ export default function ProductCard({ product }: ProductCardProps) {
       {/* Bahagian Teks & Warna (Dipusatkan) */}
       <div className="mt-5 text-center flex flex-col items-center">
 
-
-        {/* Nama Produk / Warna */}
-        <h3 className="text-[10px] md:text-[11px] font-bold text-black uppercase tracking-[0.2em] mb-1.5 line-clamp-1">
-          {isHovered ? (product.color || 'BLACK') : product.name}
+        {/* Nama Produk / Nama Warna (Berganti saat Hover) */}
+        <h3 className="text-[10px] md:text-[11px] font-bold text-black uppercase tracking-[0.2em] mb-2 line-clamp-1">
+          {isHovered ? activeColorName : product.name}
         </h3>
-        {/* Elemen Warna Bulat - Muncul Hanya Saat Hover */}
+
+        {/* List Warna Produk - Muncul Hanya Saat Hover */}
         <div
-          className={`mb-3 transition-all duration-500 ease-in-out ${isHovered ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-2 pointer-events-none'
-            }`}
+          className={`transition-all duration-500 ease-in-out flex gap-1.5 h-4 items-center ${
+            isHovered ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-2 pointer-events-none'
+          }`}
         >
-          <div
-            className="w-3 h-3 rounded-full border border-gray-200 shadow-sm"
-            style={{ backgroundColor: product.colorHex || 'black' }} // Menggunakan colorHex jika ada
-          />
+          {product.allColors && product.allColors.length > 0 ? (
+            product.allColors.map(color => renderColorBox(color))
+          ) : (
+            // Fallback kotak statis jika data allColors belum dilempar dari API Server
+            <div className="w-3 h-3 rounded-full border border-gray-200 shadow-sm" style={{ backgroundColor: '#000000' }} />
+          )}
         </div>
       </div>
     </Link>

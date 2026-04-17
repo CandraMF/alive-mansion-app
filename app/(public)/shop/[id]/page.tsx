@@ -20,8 +20,6 @@ export default async function ProductDetailPage({
         // Ubah orderBy menggunakan sizeId atau biarkan default jika relasi kompleks
         orderBy: { sizeId: 'asc' },
         include: {
-          // Asumsi Anda memiliki relasi 'color' dan 'size' di Prisma schema Variant
-          // Jika tidak ada relasi dan hanya menyimpan string id, hapus blok include ini.
           color: true,
           size: true
         }

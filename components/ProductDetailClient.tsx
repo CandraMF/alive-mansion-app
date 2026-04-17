@@ -44,19 +44,20 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [showFloatingCart, setShowFloatingCart] = useState(false);
   
   // Refs
   const isScrollingRef = useRef(false);
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
 
-  // 1. Logic: Filter warna yang tersedia (Unique Colors)
+  // 1. Logic: Filter warna yang tersedia (Unique Colors) dengan aman
   const availableColors = useMemo(() => {
     const uniqueColors = new Map();
     product.variants.forEach(v => {
       if (!uniqueColors.has(v.colorId)) {
-        uniqueColors.set(v.colorId, v.color);
+        // Fallback jika color kosong
+        const safeColor = v.color || { id: v.colorId, name: 'Default', hexCodes: ['#000000'] };
+        uniqueColors.set(v.colorId, safeColor);
       }
     });
     return Array.from(uniqueColors.values());
@@ -88,15 +89,14 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
   const handleAddToCart = () => {
     if (!activeVariant) return;
 
-    // Perbaikan TS Error: Pastikan payload sesuai dengan tipe CartItem di hook Anda
     cart.addItem({
-      id: activeVariant.id, // Gunakan variant ID untuk keranjang
+      id: activeVariant.id, 
       name: product.name,
       price: activeVariant.price,
       image: displayImages[0]?.url || '',
       size: activeVariant.size.name,
-      // Tambahkan property color jika dibutuhkan oleh tipe data CartItem Anda
-      // color: activeVariant.color.name 
+      // Jika tipe CartItem Anda butuh warna, uncomment baris bawah:
+      // color: activeVariant.color?.name 
     });
     alert(`Added ${product.name} (${activeVariant.size.name}) to Bag`);
   };
@@ -108,7 +108,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
     if (isScrollingRef.current) return;
     if (Math.abs(e.deltaY) < 15) return;
 
-    if (e.deltaY > 0 && activeImageIndex < product.images.length - 1) {
+    if (e.deltaY > 0 && activeImageIndex < displayImages.length - 1) {
       isScrollingRef.current = true;
       setActiveImageIndex((prev) => prev + 1);
     } else if (e.deltaY < 0 && activeImageIndex > 0) {
@@ -121,7 +121,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
         isScrollingRef.current = false;
       }, 400); 
     }
-  }, [activeImageIndex, product.images.length]);
+  }, [activeImageIndex, displayImages.length]);
 
   useEffect(() => {
     const container = mainContainerRef.current;
@@ -137,7 +137,6 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
     <main className="min-h-screen bg-white text-black relative pb-20 md:pb-0">
       
       {/* SEKSI UTAMA */}
-      {/* Perubahan: md:h-screen untuk desktop, auto untuk mobile agar mengikuti aspect ratio */}
       <section className="pt-0 pb-16 w-full px-4 md:px-8 lg:px-12 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 md:gap-12 items-start md:h-screen">
 
         {/* PANEL 1: THUMBNAILS (Desktop) */}
@@ -156,14 +155,10 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
         </div>
 
         {/* --- PANEL 2: TENGAH (GAMBAR UTAMA) --- */}
-        {/* Perubahan: Menghapus batasan h-[75vh] di mobile agar tinggi mengikuti rasio lebar layar */}
         <div className="w-full flex justify-center py-0 md:py-2 md:h-[calc(100vh-50px)] relative">
 
-          {/* VERSI MOBILE: Swipe Horizontal Full Width & Aspect Ratio Tetap */}
+          {/* VERSI MOBILE */}
           <div className="md:hidden relative -mx-4 w-[calc(100%+2rem)] aspect-[1024/1537] bg-gray-50">
-            {/* Perbaikan: Menambahkan styling CSS inline (Tailwind Arbitrary) 
-              untuk menjamin scrollbar horizontal hilang di Safari, Chrome, iOS & Android
-            */}
             <div 
               className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
               onScroll={(e) => {
@@ -172,7 +167,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
                 setActiveImageIndex(Math.round(scrollLeft / width));
               }}
             >
-              {product.images.map((img: any, idx: number) => (
+              {displayImages.map((img: any, idx: number) => (
                 <div key={idx} className="w-full h-full shrink-0 snap-center relative">
                   <Image src={img.url} alt={`${product.name} ${idx}`} fill className="object-cover object-center" priority={idx === 0} />
                 </div>
@@ -181,7 +176,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
 
             {/* Indikator Titik (Mobile) */}
             <div className="absolute bottom-6 left-0 w-full flex justify-center gap-2 z-10">
-              {product.images.map((_, idx) => (
+              {displayImages.map((_, idx) => (
                 <div 
                   key={idx} 
                   className={`h-[3px] transition-all duration-300 rounded-full ${activeImageIndex === idx ? 'w-6 bg-black' : 'w-2 bg-black/30'}`} 
@@ -190,7 +185,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
             </div>
           </div>
 
-          {/* VERSI DESKTOP: Custom Scroll Vertikal */}
+          {/* VERSI DESKTOP */}
           <div ref={mainContainerRef} className="hidden md:block h-full aspect-[1024/1537] relative overflow-hidden bg-gray-50 shadow-sm">
             <div
               className="w-full h-full flex flex-col transition-transform duration-[400ms] ease-[cubic-bezier(0.65,0,0.35,1)]"
@@ -210,29 +205,36 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
           <h1 className="text-2xl font-serif italic mb-2">{product.name}</h1>
           <p className="text-sm font-medium mb-8">{formatRupiah(activeVariant?.price || product.price)}</p>
 
-          {/* COLOR SELECTION: Kotak Berjejer */}
+          {/* COLOR SELECTION: Disamakan dengan Logika Split-Hex Carousel */}
           <div className="mb-8">
             <span className="text-[10px] font-bold uppercase tracking-widest block mb-4">
               Color: {availableColors.find(c => c.id === selectedColorId)?.name}
             </span>
             <div className="flex flex-wrap gap-3">
-              {availableColors.map((color) => (
-                <button
-                  key={color.id}
-                  onClick={() => {
-                    setSelectedColorId(color.id);
-                    setSelectedSizeId(null); // Reset size saat ganti warna
-                    setActiveImageIndex(0);
-                  }}
-                  className={`w-10 h-10 border transition-all ${selectedColorId === color.id ? 'border-black p-[2px]' : 'border-gray-200'}`}
-                >
-                  <div className="w-full h-full flex overflow-hidden">
-                    {color.hexCodes.map((hex: string, i: number) => (
-                      <div key={i} className="h-full flex-1" style={{ backgroundColor: hex }} />
-                    ))}
-                  </div>
-                </button>
-              ))}
+              {availableColors.map((color) => {
+                const hexes = color.hexCodes || ['#000000'];
+                
+                // Logic Split Hex Gradient Vertikal
+                let background = hexes[0];
+                if (hexes.length > 1) {
+                  const stops = hexes.map((hex: string, i: number) => `${hex} ${(i / hexes.length) * 100}%, ${hex} ${((i + 1) / hexes.length) * 100}%`);
+                  background = `linear-gradient(to right, ${stops.join(', ')})`;
+                }
+
+                return (
+                  <button
+                    key={color.id}
+                    onClick={() => {
+                      setSelectedColorId(color.id);
+                      setSelectedSizeId(null); 
+                      setActiveImageIndex(0);
+                    }}
+                    className={`w-10 h-10 border transition-all ${selectedColorId === color.id ? 'border-black p-[2px]' : 'border-gray-200 hover:border-gray-400'}`}
+                  >
+                    <div className="w-full h-full" style={{ background }} />
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -252,7 +254,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
             </button>
 
             {/* Dropdown Options */}
-            <div className={`absolute top-full left-0 w-full bg-white z-50 border border-gray-100 shadow-xl transition-all ${openAccordion === 'size' ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+            <div className={`absolute top-full left-0 w-full bg-white z-50 border border-gray-100 shadow-xl transition-all ${openAccordion === 'size' ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}>
               {filteredVariants.map((v) => (
                 <button
                   key={v.id}
@@ -280,7 +282,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
             {selectedSizeId ? ((activeVariant?.stock || 0) > 0 ? 'ADD TO BAG' : 'OUT OF STOCK') : 'SELECT SIZE'}
           </button>
 
-          {/* Description & Accordion */}
+          {/* Description */}
           <div className="mt-12 space-y-6">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest mb-3">Description</p>
@@ -295,23 +297,40 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
         </div>
       </section>
 
-      {/* REKOMENDASI (Sama seperti sebelumnya) */}
+      {/* REKOMENDASI YANG SUDAH DI-UPDATE (Mengoper data allColors) */}
       {relatedProducts.length > 0 && (
         <section className="bg-white border-t border-gray-100 px-4 md:px-12 py-20">
           <h2 className="text-center text-2xl font-serif italic mb-16 uppercase tracking-widest">You May Also Like</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {relatedProducts.map((rel) => (
-              <ProductCard
-                key={rel.id}
-                product={{
-                  id: rel.id,
-                  name: rel.name,
-                  price: formatRupiah(rel.price),
-                  images: rel.images.map((i: any) => i.url),
-                  status: 'available'
-                }}
-              />
-            ))}
+            {relatedProducts.map((rel) => {
+              // 🚀 Ekstrak All Colors persis seperti Shop/CMS
+              const relColorsMap = new Map();
+              (rel.variants || []).forEach((v: any) => {
+                const colorObj = v.color || { id: v.colorId || 'default', name: 'Default', hexCodes: ['#000000'] };
+                if (!relColorsMap.has(colorObj.id)) {
+                  let hexes = ['#000000']; 
+                  if (Array.isArray(colorObj.hexCodes) && colorObj.hexCodes.length > 0) {
+                    hexes = colorObj.hexCodes;
+                  } 
+                  relColorsMap.set(colorObj.id, { id: colorObj.id, name: colorObj.name, hexCodes: hexes });
+                }
+              });
+              const relAllColors = Array.from(relColorsMap.values());
+
+              return (
+                <ProductCard
+                  key={rel.id}
+                  product={{
+                    id: rel.id,
+                    name: rel.name,
+                    price: rel.variants?.[0]?.price || rel.price, // Fallback harga
+                    images: rel.images?.map((i: any) => i.url) || [],
+                    status: 'available',
+                    allColors: relAllColors // 🚀 Lemparkan data warna ke Card!
+                  }}
+                />
+              );
+            })}
           </div>
         </section>
       )}
