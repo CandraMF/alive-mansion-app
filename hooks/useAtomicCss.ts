@@ -35,7 +35,7 @@ export function useAtomicCss(block: any) {
   const cssMap = {
     atom: { baseDesk: '', baseMob: '', hoverDesk: '', hoverMob: '', focusDesk: '', focusMob: '' },
     wrap: { baseDesk: '', baseMob: '', hoverDesk: '', hoverMob: '', focusDesk: '', focusMob: '' },
-    img:  { baseDesk: '', baseMob: '', hoverDesk: '', hoverMob: '', focusDesk: '', focusMob: '' },
+    img: { baseDesk: '', baseMob: '', hoverDesk: '', hoverMob: '', focusDesk: '', focusMob: '' },
   };
 
   // Aturan Bawaan
@@ -43,7 +43,7 @@ export function useAtomicCss(block: any) {
     cssMap.img.baseDesk += `width: 100%; height: 100%; `;
   }
   if (block.type === 'ATOMIC_BUTTON') {
-    cssMap.wrap.baseDesk += `display: flex; width: 100%; `;
+    cssMap.wrap.baseDesk += `display: inline-flex; `;
     cssMap.atom.baseDesk += `border-style: solid; `;
   }
 

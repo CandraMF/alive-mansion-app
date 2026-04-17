@@ -19,18 +19,18 @@ export const ButtonCTA = ({ block, className, isPublic = false }: ButtonProps) =
   const content = getValue('label') || 'KLIK DI SINI';
   const finalClass = cn(
     atomClass,
-    "font-bold uppercase tracking-widest transition-all inline-flex items-center text-center",
+    "font-bold uppercase tracking-widest transition-all inline-flex items-center justify-center text-center",
     isPublic && "hover:opacity-80"
   );
 
   return (
-    <div className={cn(wrapperClass, "w-full transition-all", className)}>
+    <div className={cn(wrapperClass, "transition-all", className)}>
       <style suppressHydrationWarning>{injectedCSS}</style>
 
       {isInternal ? (
         <Link
           href={url}
-          prefetch={isPublic ? undefined : false} // Matikan preload di mode Admin!
+          prefetch={isPublic ? undefined : false}
           onClick={(e) => { if (!isPublic) e.preventDefault(); }}
           className={finalClass}
           style={baseInlineStyle}
