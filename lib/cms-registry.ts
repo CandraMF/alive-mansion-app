@@ -1,8 +1,9 @@
 export type CMSFieldType = 'text' | 'textarea' | 'image' | 'video' | 'select' | 'align' | 'object_array' | 'variant_picker' | 'color' | 'number' | 'font_select';
 
+// Catatan: Jika Inspector Sidebar Anda mendukung tab baru, Anda bisa menambahkan 'advanced' di sini.
+// Untuk saat ini kita taruh di 'layout' agar pasti muncul.
 export type CMSFieldGroup = 'content' | 'layout' | 'spacing' | 'typography' | 'background';
 
-// 🚀 TIPE DATA BARU UNTUK MESIN CSS OTOMATIS
 export interface CMSField {
   key: string;
   label: string;
@@ -13,8 +14,6 @@ export interface CMSField {
   subFields?: CMSField[];
   limit?: number;
   defaultValue?: any;
-
-  // 💎 MAGIC ENGINE PROPS
   cssProp?: string;
   cssUnit?: string;
   cssTarget?: 'atom' | 'wrapper' | 'img';
@@ -26,28 +25,48 @@ export interface CMSComponentBlueprint {
   fields: CMSField[];
 }
 
-export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
-  ATOMIC_PRODUCT_CAROUSEL: {
-    name: 'Product Carousel',
-    description: 'Slider kartu produk dinamis dengan efek hover.',
-    fields: [
-      {
-        key: 'items',
-        label: 'Daftar Produk',
-        type: 'object_array',
-        group: 'content',
-        limit: 12,
-        subFields: [
-          { key: 'variantId', label: 'Pilih Produk', type: 'variant_picker' },
-          { key: 'primaryImage', label: 'Gambar Utama', type: 'image' },
-          { key: 'hoverImage', label: 'Gambar Saat Hover', type: 'image' }
-        ]
-      },
-      { key: 'backgroundColor', label: 'Warna Latar', type: 'color', group: 'background', defaultValue: 'transparent', cssProp: 'background-color' },
-      { key: 'padding', label: 'Padding Dalam', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px', cssProp: 'padding' },
-      { key: 'margin', label: 'Margin (CSS)', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px 0px 16px 0px', cssProp: 'margin' }
+// ==========================================
+// 🌍 GLOBAL REUSABLE FIELDS (DRY Architecture)
+// ==========================================
+
+const GLOBAL_SPACING: CMSField[] = [
+  { key: 'margin', label: 'Margin (Contoh: 10px 0px)', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px 0px 16px 0px', cssProp: 'margin' },
+  { key: 'padding', label: 'Padding Dalam', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px', cssProp: 'padding' },
+];
+
+const GLOBAL_BACKGROUND: CMSField[] = [
+  { key: 'backgroundColor', label: 'Warna Latar', type: 'color', group: 'background', defaultValue: 'transparent', cssProp: 'background-color' },
+  { key: 'borderRadius', label: 'Lengkungan (px)', type: 'number', group: 'background', responsive: true, defaultValue: 0, cssProp: 'border-radius', cssUnit: 'px' },
+];
+
+const GLOBAL_TYPOGRAPHY: CMSField[] = [
+  { key: 'fontFamily', label: 'Jenis Font', type: 'font_select', group: 'typography', defaultValue: 'inherit', cssProp: 'font-family' },
+  { key: 'fontSize', label: 'Ukuran Font (px)', type: 'number', group: 'typography', responsive: true, defaultValue: 16, cssProp: 'font-size', cssUnit: 'px' },
+  { key: 'color', label: 'Warna Teks', type: 'color', group: 'typography', defaultValue: '#111827', cssProp: 'color' },
+  { key: 'align', label: 'Perataan', type: 'align', group: 'typography', responsive: true, cssProp: 'text-align', options: [{ label: 'Kiri', value: 'left' }, { label: 'Tengah', value: 'center' }, { label: 'Kanan', value: 'right' }, { label: 'Rata Penuh', value: 'justify' }] },
+];
+
+// 🚀 FITUR BARU: ADVANCED CUSTOM CSS (Tersedia untuk Semua Elemen!)
+const GLOBAL_ADVANCED_CSS: CMSField[] = [
+  {
+    key: 'customCss',
+    label: 'Advanced Custom CSS',
+    type: 'object_array',
+    group: 'layout', // Diletakkan di tab layout
+    subFields: [
+      { key: 'prop', label: 'CSS Property (Misal: backdrop-filter)', type: 'text' },
+      { key: 'val', label: 'Value (Misal: blur(10px))', type: 'text' },
+      { key: 'device', label: 'Terapkan Di', type: 'select', defaultValue: 'all', options: [{ label: 'Semua Layar', value: 'all' }, { label: 'Desktop Saja', value: 'desktop' }, { label: 'Mobile Saja', value: 'mobile' }] }
     ]
-  },
+  }
+];
+
+
+// ==========================================
+// 🏗️ COMPONENT REGISTRY
+// ==========================================
+
+export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
 
   ATOMIC_CONTAINER: {
     name: 'Layout Container',
@@ -70,11 +89,9 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
       { key: 'transform', label: 'Transform', type: 'text', group: 'layout', responsive: true, cssProp: 'transform' },
       { key: 'zIndex', label: 'Z-Index', type: 'number', group: 'layout', cssProp: 'z-index' },
 
-      { key: 'margin', label: 'Margin (Gunakan 0 auto untuk ke tengah)', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px auto', cssProp: 'margin' },
-      { key: 'padding', label: 'Padding', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px', cssProp: 'padding' },
-
-      { key: 'backgroundColor', label: 'Warna Latar', type: 'color', group: 'background', defaultValue: 'transparent', cssProp: 'background-color' },
-      { key: 'borderRadius', label: 'Lengkungan (px)', type: 'number', group: 'background', responsive: true, defaultValue: 0, cssProp: 'border-radius', cssUnit: 'px' },
+      ...GLOBAL_SPACING,
+      ...GLOBAL_BACKGROUND,
+      ...GLOBAL_ADVANCED_CSS // BOOM! Fitur Advanced CSS masuk!
     ]
   },
 
@@ -84,15 +101,12 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
     fields: [
       { key: 'text', label: 'Teks Judul', type: 'text', group: 'content', defaultValue: 'Heading Baru' },
       { key: 'tag', label: 'Tag SEO', type: 'select', group: 'content', defaultValue: 'h2', options: [{ label: 'H1', value: 'h1' }, { label: 'H2', value: 'h2' }, { label: 'H3', value: 'h3' }, { label: 'H4', value: 'h4' }] },
-
-      { key: 'fontFamily', label: 'Jenis Font', type: 'font_select', group: 'typography', defaultValue: 'inherit', cssProp: 'font-family' },
-      { key: 'fontSize', label: 'Ukuran Font (px)', type: 'number', group: 'typography', responsive: true, defaultValue: 36, cssProp: 'font-size', cssUnit: 'px' },
       { key: 'fontWeight', label: 'Ketebalan Font', type: 'select', group: 'typography', defaultValue: '700', cssProp: 'font-weight', options: [{ label: 'Normal (400)', value: '400' }, { label: 'Medium (500)', value: '500' }, { label: 'Bold (700)', value: '700' }, { label: 'Black (900)', value: '900' }] },
-      { key: 'color', label: 'Warna Teks', type: 'color', group: 'typography', defaultValue: '#111827', cssProp: 'color' },
       { key: 'letterSpacing', label: 'Spasi Huruf (px)', type: 'number', group: 'typography', responsive: true, defaultValue: 0, cssProp: 'letter-spacing', cssUnit: 'px' },
-      { key: 'align', label: 'Perataan', type: 'align', group: 'typography', responsive: true, cssProp: 'text-align', options: [{ label: 'Kiri', value: 'left' }, { label: 'Tengah', value: 'center' }, { label: 'Kanan', value: 'right' }] },
 
-      { key: 'margin', label: 'Margin (CSS)', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px 0px 16px 0px', cssProp: 'margin' }
+      ...GLOBAL_TYPOGRAPHY,
+      ...GLOBAL_SPACING,
+      ...GLOBAL_ADVANCED_CSS
     ]
   },
 
@@ -101,14 +115,11 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
     description: 'Teks deskripsi panjang dengan pengaturan spasi.',
     fields: [
       { key: 'text', label: 'Konten Paragraf', type: 'textarea', group: 'content', defaultValue: 'Teks paragraf baru.' },
-
-      { key: 'fontFamily', label: 'Jenis Font', type: 'font_select', group: 'typography', defaultValue: 'inherit', cssProp: 'font-family' },
-      { key: 'fontSize', label: 'Ukuran Font (px)', type: 'number', group: 'typography', responsive: true, defaultValue: 16, cssProp: 'font-size', cssUnit: 'px' },
       { key: 'lineHeight', label: 'Jarak Baris', type: 'text', group: 'typography', responsive: true, defaultValue: '1.6', cssProp: 'line-height' },
-      { key: 'color', label: 'Warna Teks', type: 'color', group: 'typography', defaultValue: '#4B5563', cssProp: 'color' },
-      { key: 'align', label: 'Perataan', type: 'align', group: 'typography', responsive: true, cssProp: 'text-align', options: [{ label: 'Kiri', value: 'left' }, { label: 'Tengah', value: 'center' }, { label: 'Kanan', value: 'right' }, { label: 'Rata Penuh', value: 'justify' }] },
 
-      { key: 'margin', label: 'Margin (CSS)', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px 0px 16px 0px', cssProp: 'margin' }
+      ...GLOBAL_TYPOGRAPHY,
+      ...GLOBAL_SPACING,
+      ...GLOBAL_ADVANCED_CSS
     ]
   },
 
@@ -117,14 +128,13 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
     description: 'Gambar dengan kontrol dimensi dan radius absolut.',
     fields: [
       { key: 'url', label: 'Pilih Gambar', type: 'image', group: 'content' },
-
       { key: 'width', label: 'Lebar', type: 'text', group: 'layout', responsive: true, defaultValue: '100%', cssProp: 'width' },
       { key: 'height', label: 'Tinggi', type: 'text', group: 'layout', responsive: true, defaultValue: 'auto', cssProp: 'height' },
       { key: 'objectFit', label: 'Image Fit', type: 'select', group: 'layout', responsive: true, defaultValue: 'cover', cssProp: 'object-fit', cssTarget: 'img', options: [{ label: 'Cover', value: 'cover' }, { label: 'Contain', value: 'contain' }, { label: 'Fill', value: 'fill' }] },
 
-      { key: 'borderRadius', label: 'Lengkungan (px)', type: 'number', group: 'background', responsive: true, defaultValue: 0, cssProp: 'border-radius', cssUnit: 'px' },
-
-      { key: 'margin', label: 'Margin (CSS)', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px 0px 16px 0px', cssProp: 'margin' }
+      ...GLOBAL_SPACING,
+      ...GLOBAL_BACKGROUND,
+      ...GLOBAL_ADVANCED_CSS
     ]
   },
 
@@ -134,20 +144,15 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
     fields: [
       { key: 'label', label: 'Label Tombol', type: 'text', group: 'content', defaultValue: 'KLIK DI SINI' },
       { key: 'url', label: 'Tautan (Link URL)', type: 'text', group: 'content', defaultValue: '#' },
-
       { key: 'align', label: 'Posisi Tombol', type: 'align', group: 'layout', responsive: true, defaultValue: 'flex-start', cssProp: 'justify-content', cssTarget: 'wrapper', options: [{ label: 'Kiri', value: 'flex-start' }, { label: 'Tengah', value: 'center' }, { label: 'Kanan', value: 'flex-end' }] },
 
-      { key: 'fontFamily', label: 'Jenis Font', type: 'font_select', group: 'typography', defaultValue: 'inherit', cssProp: 'font-family' },
-      { key: 'textColor', label: 'Warna Teks', type: 'color', group: 'typography', defaultValue: '#ffffff', cssProp: 'color' },
-      { key: 'fontSize', label: 'Ukuran Font (px)', type: 'number', group: 'typography', responsive: true, defaultValue: 14, cssProp: 'font-size', cssUnit: 'px' },
-
-      { key: 'padding', label: 'Padding Dalam', type: 'text', group: 'spacing', responsive: true, defaultValue: '12px 24px', cssProp: 'padding' },
-      { key: 'margin', label: 'Margin (CSS)', type: 'text', group: 'spacing', responsive: true, defaultValue: '0px 0px 16px 0px', cssProp: 'margin', cssTarget: 'wrapper' },
-
-      { key: 'backgroundColor', label: 'Warna Background', type: 'color', group: 'background', defaultValue: '#000000', cssProp: 'background-color' },
-      { key: 'borderRadius', label: 'Lengkungan (px)', type: 'number', group: 'background', responsive: true, defaultValue: 0, cssProp: 'border-radius', cssUnit: 'px' },
       { key: 'borderWidth', label: 'Tebal Garis (px)', type: 'number', group: 'background', defaultValue: 0, cssProp: 'border-width', cssUnit: 'px' },
       { key: 'borderColor', label: 'Warna Garis', type: 'color', group: 'background', defaultValue: 'transparent', cssProp: 'border-color' },
+
+      ...GLOBAL_TYPOGRAPHY,
+      ...GLOBAL_SPACING,
+      ...GLOBAL_BACKGROUND,
+      ...GLOBAL_ADVANCED_CSS
     ]
   },
 
@@ -155,7 +160,30 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
     name: 'Spacer Element',
     description: 'Pemisah antar elemen bebas pixel.',
     fields: [
-      { key: 'height', label: 'Tinggi Spasi (px)', type: 'number', group: 'spacing', responsive: true, defaultValue: 40, cssProp: 'height', cssUnit: 'px' }
+      { key: 'height', label: 'Tinggi Spasi (px)', type: 'number', group: 'spacing', responsive: true, defaultValue: 40, cssProp: 'height', cssUnit: 'px' },
+      ...GLOBAL_ADVANCED_CSS
+    ]
+  },
+
+  ATOMIC_PRODUCT_CAROUSEL: {
+    name: 'Product Carousel',
+    description: 'Slider kartu produk dinamis dengan efek hover.',
+    fields: [
+      {
+        key: 'items',
+        label: 'Daftar Produk',
+        type: 'object_array',
+        group: 'content',
+        limit: 12,
+        subFields: [
+          { key: 'variantId', label: 'Pilih Produk', type: 'variant_picker' },
+          { key: 'primaryImage', label: 'Gambar Utama', type: 'image' },
+          { key: 'hoverImage', label: 'Gambar Saat Hover', type: 'image' }
+        ]
+      },
+      ...GLOBAL_SPACING,
+      ...GLOBAL_BACKGROUND,
+      ...GLOBAL_ADVANCED_CSS
     ]
   }
 };

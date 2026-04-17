@@ -14,12 +14,24 @@ import IFrameWrapper from '@/components/cms/IFrameWrapper';
 import NavigatorSidebar from '@/components/cms/NavigatorSidebar';
 import InspectorSidebar from '@/components/cms/InspectorSidebar';
 import ComponentPickerModal from '@/components/cms/ComponentPickerModal';
-import PreviewRenderer from "@/components/cms/PreviewRenderer";
 import { ProductPickerModal } from "@/components/admin/ProductPickerModal";
 import { ProductImagePickerModal } from "@/components/admin/ProductImagePickerModal";
 
 import { CMS_TEMPLATES } from '@/lib/cms-templates';
 import { cn } from "@/lib/utils";
+
+import dynamic from 'next/dynamic';
+
+// Memaksa PreviewRenderer menjadi murni SPA (Client-Side Only)
+const PreviewRenderer = dynamic(() => import("@/components/cms/PreviewRenderer"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[600px] flex flex-col items-center justify-center bg-gray-50/50 m-4 rounded-3xl border-2 border-dashed border-gray-200">
+      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p className="text-xs uppercase tracking-widest text-gray-400 font-bold animate-pulse">Memuat Kanvas SPA...</p>
+    </div>
+  )
+});
 
 export default function CMSBuilderPage() {
   // ==========================================

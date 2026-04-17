@@ -46,12 +46,20 @@ export default function PublicRenderer({ pageData }: { pageData: any }) {
         const bgImageStyle = secData.backgroundImage ? { backgroundImage: `url(${secData.backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {};
 
         const secClass = `sec-${section.id}`;
-        const padMob = secData.padding !== undefined && secData.padding !== '' ? secData.padding : '80px 20px';
-        const padDesk = secData.paddingDesktop !== undefined && secData.paddingDesktop !== '' ? secData.paddingDesktop : padMob;
-        const minHMob = secData.minHeight !== undefined && secData.minHeight !== '' ? secData.minHeight : 'auto';
-        const minHDesk = secData.minHeightDesktop !== undefined && secData.minHeightDesktop !== '' ? secData.minHeightDesktop : minHMob;
 
-        const secCSS = `.${secClass} { padding: ${padMob}; min-height: ${minHMob}; } @media (min-width: 768px) { .${secClass} { padding: ${padDesk}; min-height: ${minHDesk}; } }`;
+        // 🚀 DESKTOP-FIRST CSS UNTUK SECTION
+        const padDesk = secData.padding !== undefined && secData.padding !== '' ? secData.padding : '80px 20px';
+        const padMob = secData.paddingMobile !== undefined && secData.paddingMobile !== '' ? secData.paddingMobile : padDesk;
+
+        const minHDesk = secData.minHeight !== undefined && secData.minHeight !== '' ? secData.minHeight : 'auto';
+        const minHMob = secData.minHeightMobile !== undefined && secData.minHeightMobile !== '' ? secData.minHeightMobile : minHDesk;
+
+        const secCSS = `
+          .${secClass} { padding: ${padDesk}; min-height: ${minHDesk}; } 
+          @media (max-width: 767px) { 
+            .${secClass} { padding: ${padMob}; min-height: ${minHMob}; } 
+          }
+        `;
 
         return (
           <section

@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from "@/lib/utils";
 import { useAtomicCss } from '@/hooks/useAtomicCss';
+import Link from 'next/link';
 
 interface ButtonProps {
   block: any;
@@ -11,22 +12,43 @@ interface ButtonProps {
 export const ButtonCTA = ({ block, className, isPublic = false }: ButtonProps) => {
   const { atomClass, wrapperClass, baseInlineStyle, injectedCSS, getValue } = useAtomicCss(block);
 
+  const url = getValue('url') || '#';
+  // Deteksi apakah ini link internal (dimulai dengan "/")
+  const isInternal = url.startsWith('/') && !url.startsWith('//');
+
+  const content = getValue('label') || 'KLIK DI SINI';
+  const finalClass = cn(
+    atomClass,
+    "font-bold uppercase tracking-widest transition-all inline-flex items-center text-center",
+    isPublic && "hover:opacity-80"
+  );
+
   return (
     <div className={cn(wrapperClass, "w-full transition-all", className)}>
-      <style dangerouslySetInnerHTML={{ __html: injectedCSS }} />
-      <a
-        href={getValue('url') || '#'}
-        // Mencegah navigasi di iframe admin agar user tidak keluar dari editor
-        onClick={(e) => { if (!isPublic) e.preventDefault(); }} 
-        className={cn(
-          atomClass, 
-          "font-bold uppercase tracking-widest transition-all inline-flex items-center text-center",
-          isPublic && "hover:opacity-80" // Efek hover sederhana untuk publik
-        )}
-        style={baseInlineStyle}
-      >
-        {getValue('label') || 'KLIK DI SINI'}
-      </a>
+      <style suppressHydrationWarning>{injectedCSS}</style>
+
+      {isInternal ? (
+        <Link
+          href={url}
+          prefetch={isPublic ? undefined : false} // Matikan preload di mode Admin!
+          onClick={(e) => { if (!isPublic) e.preventDefault(); }}
+          className={finalClass}
+          style={baseInlineStyle}
+        >
+          {content}
+        </Link>
+      ) : (
+        <a
+          href={url}
+          target={url.startsWith('http') ? "_blank" : undefined}
+          rel={url.startsWith('http') ? "noopener noreferrer" : undefined}
+          onClick={(e) => { if (!isPublic) e.preventDefault(); }}
+          className={finalClass}
+          style={baseInlineStyle}
+        >
+          {content}
+        </a>
+      )}
     </div>
   );
 };

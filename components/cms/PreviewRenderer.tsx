@@ -101,12 +101,20 @@ export default function PreviewRenderer({
         const bgImageStyle = secData.backgroundImage ? { backgroundImage: `url(${secData.backgroundImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {};
 
         const secClass = `sec-${section.id}`;
-        const padMob = secData.padding !== undefined && secData.padding !== '' ? secData.padding : '80px 20px';
-        const padDesk = secData.paddingDesktop !== undefined && secData.paddingDesktop !== '' ? secData.paddingDesktop : padMob;
-        const minHMob = secData.minHeight !== undefined && secData.minHeight !== '' ? secData.minHeight : 'auto';
-        const minHDesk = secData.minHeightDesktop !== undefined && secData.minHeightDesktop !== '' ? secData.minHeightDesktop : minHMob;
 
-        const secCSS = `.${secClass} { padding: ${padMob}; min-height: ${minHMob}; } @media (min-width: 768px) { .${secClass} { padding: ${padDesk}; min-height: ${minHDesk}; } }`;
+        // 🚀 DESKTOP-FIRST CSS UNTUK SECTION DI PREVIEW RENDERER
+        const padDesk = secData.padding !== undefined && secData.padding !== '' ? secData.padding : '80px 20px';
+        const padMob = secData.paddingMobile !== undefined && secData.paddingMobile !== '' ? secData.paddingMobile : padDesk;
+
+        const minHDesk = secData.minHeight !== undefined && secData.minHeight !== '' ? secData.minHeight : 'auto';
+        const minHMob = secData.minHeightMobile !== undefined && secData.minHeightMobile !== '' ? secData.minHeightMobile : minHDesk;
+
+        const secCSS = `
+          .${secClass} { padding: ${padDesk}; min-height: ${minHDesk}; } 
+          @media (max-width: 767px) { 
+            .${secClass} { padding: ${padMob}; min-height: ${minHMob}; } 
+          }
+        `;
 
         return (
           <section key={section.id} onClick={(e) => { e.stopPropagation(); if (onSelectSection) onSelectSection(section.id); }}
@@ -127,7 +135,6 @@ export default function PreviewRenderer({
               ))}
             </div>
 
-            {/* 🔥 PERBAIKAN: Tombol sekarang Absolute melayang di atas segalanya */}
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover/section:opacity-100 transition-all z-50">
               <Button size="sm" variant="outline" className="rounded-full bg-white border-blue-200 text-blue-600 hover:bg-blue-50 shadow-xl gap-2 px-6 h-9" onClick={(e) => { e.stopPropagation(); if (onAddBlock) onAddBlock(section.id); }}><Box className="w-4 h-4" /> Tambah Root Elemen</Button>
             </div>
