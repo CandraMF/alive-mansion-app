@@ -22,7 +22,8 @@ import {
   ChevronRight,
   Navigation2,
   FileText,
-  Globe
+  Globe,
+  ShoppingCart
 } from 'lucide-react';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -64,6 +65,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       items: [
         { name: 'Orders', path: '/admin/orders', icon: ShoppingBag },
         { name: 'Customers', path: '/admin/customers', icon: Users },
+        { name: 'Promo & Discounts', path: '/admin/promos', icon: ShoppingCart },
       ]
     },
     {

@@ -83,7 +83,7 @@ export default function MasterCategoryPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-8">
+    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-2xl font-black uppercase tracking-tight mb-1">Master Categories</h1>
         <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">

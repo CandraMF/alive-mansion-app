@@ -139,7 +139,7 @@ export default function AdminProductsPage() {
   const toggleExpandRow = (id: string) => setExpandedRowId(expandedRowId === id ? null : id);
 
   return (
-    <div className="max-w-[1600px] mx-auto flex flex-col gap-6 pb-24">
+    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
 
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
