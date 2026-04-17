@@ -4,15 +4,17 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> } 
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; 
+    const { id } = await params;
 
     const product = await prisma.product.findUnique({
       where: { id },
       include: {
-        variants: true,
+        variants: {
+          include: { color: true } 
+        },
         images: {
           orderBy: { position: 'asc' }
         }
@@ -36,7 +38,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; 
+    const { id } = await params;
     const body = await request.json();
     const { name, description, status, categoryId, variants, images } = body;
 
@@ -49,7 +51,7 @@ export async function PUT(
 
     const updatedProduct = await prisma.$transaction(async (tx) => {
 
-      
+
       const prod = await tx.product.update({
         where: { id },
         data: {
@@ -60,7 +62,7 @@ export async function PUT(
         }
       });
 
-      
+
       await tx.productImage.deleteMany({ where: { productId: id } });
       await tx.productImage.createMany({
         data: images.map((img: any) => ({
@@ -72,7 +74,7 @@ export async function PUT(
         }))
       });
 
-      
+
       await tx.variant.deleteMany({ where: { productId: id } });
       await tx.variant.createMany({
         data: variants.map((v: any) => {
@@ -107,7 +109,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; 
+    const { id } = await params;
     await prisma.product.delete({
       where: { id }
     });

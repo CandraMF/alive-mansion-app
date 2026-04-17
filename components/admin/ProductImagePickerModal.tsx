@@ -12,23 +12,36 @@ interface ProductImagePickerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (imageUrl: string) => void;
+  defaultSearch?: string; // 🚀 Prop baru untuk Auto-Search
 }
 
-export function ProductImagePickerModal({ isOpen, onClose, onSelect }: ProductImagePickerModalProps) {
+export function ProductImagePickerModal({ isOpen, onClose, onSelect, defaultSearch }: ProductImagePickerModalProps) {
   const [images, setImages] = useState<{ url: string, productName: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Debounce Search
+  // 🚀 Auto-Search saat modal dibuka
   useEffect(() => {
+    if (isOpen && defaultSearch) {
+      setSearchQuery(defaultSearch);
+      setDebouncedSearch(defaultSearch); // Langsung eksekusi tanpa menunggu delay 500ms
+    } else if (isOpen) {
+      setSearchQuery('');
+      setDebouncedSearch('');
+    }
+  }, [isOpen, defaultSearch]);
+
+  // Debounce Search untuk ketikan manual
+  useEffect(() => {
+    if (!isOpen) return;
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
     }, 500);
     return () => clearTimeout(handler);
-  }, [searchQuery]);
+  }, [searchQuery, isOpen]);
 
-  // Fetch Data Produk & Ekstrak Gambar
+  // Fetch Data Produk & Ekstrak Gambar (Biarkan sama persis seperti sebelumnya)
   const fetchImages = useCallback(async () => {
     if (!isOpen) return;
     setIsLoading(true);

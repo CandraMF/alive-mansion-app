@@ -162,10 +162,19 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
     ]
   },
 
+  // lib/cms-registry.ts -> Bagian ATOMIC_PRODUCT_CAROUSEL
   ATOMIC_PRODUCT_CAROUSEL: {
     name: 'Product Carousel',
-    description: 'Slider kartu produk dinamis dengan efek hover.',
+    description: 'Slider kartu produk dengan indikator warna (mendukung multi-hex split vertikal).',
     fields: [
+      {
+        key: 'showDetails',
+        label: 'Tampilkan Info (Nama & Harga)?',
+        type: 'select',
+        group: 'content',
+        defaultValue: 'yes',
+        options: [{ label: 'Ya, Tampilkan', value: 'yes' }, { label: 'Sembunyikan', value: 'no' }]
+      },
       {
         key: 'items',
         label: 'Daftar Produk',
@@ -173,9 +182,11 @@ export const CMS_COMPONENTS: Record<string, CMSComponentBlueprint> = {
         group: 'content',
         limit: 12,
         subFields: [
-          { key: 'variantId', label: 'Pilih Produk', type: 'variant_picker' },
-          { key: 'primaryImage', label: 'Gambar Utama', type: 'image' },
-          { key: 'hoverImage', label: 'Gambar Saat Hover', type: 'image' }
+          { key: 'productData', label: '1. Pilih Data Produk', type: 'variant_picker' },
+          { key: 'activeColorId', label: '2. ID Warna Aktif (Internal)', type: 'text' },
+          { key: 'primaryImage', label: '3. Gambar Utama', type: 'image' },
+          { key: 'hoverImage', label: '4. Gambar Hover', type: 'image' },
+          { key: 'customUrl', label: '5. Override URL (Opsional)', type: 'text' }
         ]
       },
       ...GLOBAL_SPACING,

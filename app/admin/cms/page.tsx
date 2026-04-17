@@ -567,13 +567,23 @@ export default function CMSBuilderPage() {
         onClose={() => setPickerTarget(null)}
         onSelect={(v) => {
           if (!pickerTarget) return;
+
           if (pickerTarget.parentKey && pickerTarget.index !== undefined) {
             const newArr = [...(activeData?.content[pickerTarget.parentKey] || [])];
-            newArr[pickerTarget.index][pickerTarget.key] = v.variantId;
-            if (v.imageUrl) newArr[pickerTarget.index]['primaryImage'] = v.imageUrl;
+            if (!newArr[pickerTarget.index]) newArr[pickerTarget.index] = {};
+
+            // 1. Simpan snapshot data produk utuh
+            newArr[pickerTarget.index][pickerTarget.key] = v;
+
+            // 2. 🚀 AUTO-FILL: Ambil warna dari varian pertama & gambar
+            const firstColor = v.allColors?.[0];
+            newArr[pickerTarget.index]['activeColorId'] = firstColor?.id || '';
+            newArr[pickerTarget.index]['primaryImage'] = v.images?.[0] || '';
+            newArr[pickerTarget.index]['hoverImage'] = v.images?.[1] || '';
+
             updateBlockContent(pickerTarget.sectionId, pickerTarget.blockId, pickerTarget.parentKey, newArr);
           } else {
-            updateBlockContent(pickerTarget.sectionId, pickerTarget.blockId, pickerTarget.key, v.variantId);
+            updateBlockContent(pickerTarget.sectionId, pickerTarget.blockId, pickerTarget.key, v);
           }
         }}
       />

@@ -191,6 +191,43 @@ export default function InspectorSidebar({
       </div>
     );
 
+    // 🚀 FITUR KHUSUS: Render UI Lingkaran Warna untuk activeColorId
+    if (field.key === 'activeColorId') {
+      const currentItem = parentKey && index !== undefined ? blockOrSection.content?.[parentKey]?.[index] : undefined;
+      const allColors = currentItem?.productData?.allColors || [];
+
+      if (allColors.length === 0) return null; // Sembunyikan jika belum ada produk terpilih
+
+      return renderInputWrapper(
+        <div className="flex flex-wrap gap-2 pt-1 pb-2">
+          {allColors.map((color: any) => {
+            const isSelected = displayVal === color.id;
+            const hexes = color.hexes || ['#000000'];
+
+            // Logic Gradient Split Vertikal (Sama seperti di Card)
+            let background = hexes[0];
+            if (hexes.length > 1) {
+              const stops = hexes.map((h: string, i: number) => `${h} ${(i / hexes.length) * 100}%, ${h} ${((i + 1) / hexes.length) * 100}%`);
+              background = `linear-gradient(to right, ${stops.join(', ')})`;
+            }
+
+            return (
+              <button
+                key={color.id}
+                onClick={(e) => { e.preventDefault(); handleDataChange(dataKey, color.id, parentKey, index); }}
+                className={cn(
+                  "w-6 h-6 rounded-full border-2 transition-all shadow-sm",
+                  isSelected ? "border-gray-900 scale-125 z-10" : "border-gray-200 hover:scale-110"
+                )}
+                style={{ background }}
+                title={color.name}
+              />
+            );
+          })}
+        </div>
+      );
+    }
+
     switch (field.type) {
       case 'text': case 'video': case 'number':
         return renderInputWrapper(<Input type={field.type === 'number' ? 'number' : 'text'} value={displayVal} onChange={(e) => handleDataChange(dataKey, e.target.value, parentKey, index)} className={cn("h-8 text-xs", field.type === 'number' && "font-mono")} />);
@@ -233,11 +270,14 @@ export default function InspectorSidebar({
           </div>
         );
       case 'image':
+        const currentItemForImg = parentKey && index !== undefined ? blockOrSection.content?.[parentKey]?.[index] : undefined;
+        const defaultSearchForImage = currentItemForImg?.productData?.productName || '';
+
         return renderInputWrapper(
           <>
             {displayVal && <div className="h-20 bg-gray-200 rounded overflow-hidden relative w-full mb-2"><img src={displayVal} alt="preview" className="w-full h-full object-cover" /></div>}
             <div className="flex gap-2 w-full min-w-0">
-              <Button variant="outline" size="sm" className="flex-1 text-[10px] h-7 min-w-0" onClick={() => setImagePickerTarget({ sectionId: activeItem.sectionId || activeData.id, blockId: blockOrSection.id, key: dataKey, parentKey, index })}><ImageIcon className="w-3 h-3 mr-1 shrink-0" /> <span className="truncate">Katalog</span></Button>
+              <Button variant="outline" size="sm" className="flex-1 text-[10px] h-7 min-w-0" onClick={() => setImagePickerTarget({ sectionId: activeItem.sectionId || activeData.id, blockId: blockOrSection.id, key: dataKey, parentKey, index, defaultSearch: defaultSearchForImage })}><ImageIcon className="w-3 h-3 mr-1 shrink-0" /> <span className="truncate">Katalog</span></Button>
               <Button variant="outline" size="sm" className="flex-1 text-[10px] h-7 min-w-0" onClick={() => { setUploadTarget({ sectionId: activeItem.sectionId || activeData.id, blockId: blockOrSection.id, key: dataKey, parentKey, index }); fileInputRef.current?.click(); }} disabled={isUploading}><UploadCloud className="w-3 h-3 mr-1 shrink-0" /> <span className="truncate">Upload</span></Button>
             </div>
           </>
@@ -247,7 +287,7 @@ export default function InspectorSidebar({
           <div key={field.key} className="space-y-1.5 w-full mb-3">
             {LabelContent}
             <div className="flex items-center gap-2 w-full">
-              <Input value={displayVal || ''} readOnly placeholder="Pilih Produk..." className="h-8 text-xs bg-white flex-1 font-mono text-gray-500 min-w-0" />
+              <Input value={displayVal?.productName || displayVal || ''} readOnly placeholder="Pilih Produk..." className="h-8 text-xs bg-white flex-1 font-mono text-gray-500 min-w-0" />
               <Button variant="default" size="sm" className="h-8 text-[10px] whitespace-nowrap shrink-0 bg-indigo-600 hover:bg-indigo-700" onClick={() => setPickerTarget({ sectionId: activeItem.sectionId || activeData.id, blockId: blockOrSection.id, key: dataKey, parentKey, index })}>Pilih</Button>
             </div>
           </div>

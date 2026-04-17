@@ -58,7 +58,12 @@ export async function GET(request: Request) {
         include: {
           category: { include: { parent: true } },
           images: { orderBy: { position: 'asc' } },
-          variants: true,
+          variants: {
+            include: {
+              color: true,
+              size: true
+            }
+          },
         },
         orderBy,
         skip,   // Lewati data halaman sebelumnya
