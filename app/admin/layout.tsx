@@ -32,8 +32,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // FITUR BARU: State untuk Sidebar Collapsible di Desktop
+  // 🚀 FITUR BARU: State untuk Sidebar Collapsible di Desktop
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
+  
+  // State untuk mencegah Hydration Mismatch di Next.js
+  const [isMounted, setIsMounted] = useState(false);
+
+  // 🚀 BACA LOCAL STORAGE SAAT HALAMAN DIMUAT
+  useEffect(() => {
+    setIsMounted(true);
+    const savedState = localStorage.getItem('alive_sidebar_collapsed');
+    if (savedState !== null) {
+      setIsDesktopCollapsed(savedState === 'true');
+    }
+  }, []);
+
+  // 🚀 FUNGSI TOGGLE & SIMPAN KE LOCAL STORAGE
+  const toggleDesktopSidebar = () => {
+    const newState = !isDesktopCollapsed;
+    setIsDesktopCollapsed(newState);
+    localStorage.setItem('alive_sidebar_collapsed', String(newState));
+  };
 
   useEffect(() => {
     if (isMobileMenuOpen) {
@@ -71,7 +90,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     {
       label: 'CMS',
       items: [
-        { name: 'All Pages', path: '/admin/pages', icon: FileText }, // <-- TAMBAHKAN INI
+        { name: 'All Pages', path: '/admin/pages', icon: FileText },
         { name: 'Page Builder', path: '/admin/cms', icon: LayoutDashboard },
         { name: 'Navigation', path: '/admin/navigations', icon: Globe },
         { name: 'Theme', path: '/admin/theme', icon: Palette },
@@ -93,24 +112,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return 'Dashboard';
   };
 
-  // Render NavLinks dibuat dinamis mengikuti status Collapse
   const renderNavLinks = (isMobile = false) => {
     const collapsed = !isMobile && isDesktopCollapsed;
+
+    // Cegah render string yang bisa menyebabkan hydration mismatch sebelum mounted
+    if (!isMounted && !isMobile) return <nav className="flex-1" />;
 
     return (
       <nav className="flex-1 py-6 flex flex-col gap-6 overflow-y-auto no-scrollbar">
         {navGroups.map((group, groupIdx) => (
           <div key={groupIdx} className="flex flex-col gap-1.5 px-3">
-            {/* Label Grup / Divider */}
             {collapsed ? (
               <div className="h-px bg-gray-100 my-2 mx-2" />
             ) : (
-              <span className="px-4 text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400 mb-1">
+              <span className="px-4 text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400 mb-1 transition-opacity duration-300">
                 {group.label}
               </span>
             )}
 
-            {/* Item Menu */}
             {group.items.map((item) => {
               const isActive = pathname === item.path;
               const Icon = item.icon;
@@ -118,10 +137,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link
                   key={item.name}
                   href={item.path}
-                  title={collapsed ? item.name : undefined} // Tooltip bawaan saat di-hover jika collapsed
+                  title={collapsed ? item.name : undefined}
                   onClick={() => isMobile && setIsMobileMenuOpen(false)}
                   className={cn(
-                    "group flex items-center py-2.5 text-sm font-medium transition-all duration-200 rounded-md",
+                    "group flex items-center py-2.5 text-sm font-medium transition-all duration-200 rounded-md relative",
                     collapsed ? "justify-center px-0" : "px-4",
                     isActive ? "text-gray-900 bg-gray-100" : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                   )}
@@ -130,7 +149,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     strokeWidth={isActive ? 2.5 : 2}
                     className={cn("w-[18px] h-[18px] transition-transform duration-200 shrink-0", !collapsed && "mr-3", isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-900")}
                   />
-                  {!collapsed && <span className="truncate">{item.name}</span>}
+                  {!collapsed && <span className="truncate transition-opacity duration-300">{item.name}</span>}
                 </Link>
               );
             })}
@@ -173,37 +192,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* --- DESKTOP: SIDEBAR (SEKARANG COLLAPSIBLE) --- */}
+      {/* --- DESKTOP: SIDEBAR --- */}
       <aside
         className={cn(
           "hidden md:flex bg-white border-r border-gray-200 flex-col sticky top-0 h-screen z-20 shrink-0 transition-all duration-300 ease-in-out",
-          isDesktopCollapsed ? "w-20" : "w-64" // Lebar menyusut
+          !isMounted ? "w-64" : (isDesktopCollapsed ? "w-20" : "w-64") 
         )}
       >
-        <div className={cn("h-16 flex items-center border-b border-gray-100 shrink-0", isDesktopCollapsed ? "justify-center" : "justify-between px-6")}>
-          {!isDesktopCollapsed && (
+        <div className={cn("h-16 flex items-center border-b border-gray-100 shrink-0 transition-all duration-300", (!isMounted || !isDesktopCollapsed) ? "justify-between px-6" : "justify-center")}>
+          {(!isMounted || !isDesktopCollapsed) && (
             <Link href="/" className="text-lg font-bold tracking-tight text-gray-900 truncate">
               Alive Admin
             </Link>
           )}
-          {/* Tombol Toggle Sidebar */}
+          {/* 🚀 HUBUNGKAN FUNGSI KE TOMBOL INI */}
           <button
-            onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)}
+            onClick={toggleDesktopSidebar}
             className="text-gray-400 hover:text-gray-900 p-1.5 rounded-md hover:bg-gray-100 transition-colors"
           >
-            {isDesktopCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            {(isMounted && isDesktopCollapsed) ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
           </button>
         </div>
 
         {renderNavLinks(false)}
 
         {/* Profil Admin */}
-        <div className={cn("mb-3 border border-gray-100 rounded-lg shrink-0 bg-white shadow-sm hover:shadow-md transition-all", isDesktopCollapsed ? "mx-2 p-2 flex justify-center" : "mx-3 p-4")}>
-          <div className={cn("flex items-center cursor-pointer", !isDesktopCollapsed && "gap-3")}>
-            <Avatar className={cn("rounded-md shrink-0", isDesktopCollapsed ? "w-8 h-8" : "w-9 h-9")}>
+        <div className={cn("mb-3 border border-gray-100 rounded-lg shrink-0 bg-white shadow-sm hover:shadow-md transition-all duration-300", (!isMounted || !isDesktopCollapsed) ? "mx-3 p-4" : "mx-2 p-2 flex justify-center")}>
+          <div className={cn("flex items-center cursor-pointer", (!isMounted || !isDesktopCollapsed) && "gap-3")}>
+            <Avatar className={cn("rounded-md shrink-0 transition-all duration-300", (!isMounted || !isDesktopCollapsed) ? "w-9 h-9" : "w-8 h-8")}>
               <AvatarFallback className="bg-gray-100 text-sm font-semibold text-gray-900">AD</AvatarFallback>
             </Avatar>
-            {!isDesktopCollapsed && (
+            {(!isMounted || !isDesktopCollapsed) && (
               <div className="flex flex-col overflow-hidden">
                 <span className="text-sm font-semibold text-gray-900 leading-none mb-1 truncate">Admin User</span>
                 <span className="text-xs font-normal text-gray-500 leading-none truncate">admin@alive.com</span>
@@ -225,7 +244,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </header>
 
-        {/* FITUR BARU: Padding dihapus total agar halaman menggunakan 100% ruang yang tersedia */}
         <div className="text-gray-900 flex-1 relative w-full">
           {children}
         </div>
