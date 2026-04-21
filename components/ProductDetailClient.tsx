@@ -3,11 +3,13 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation'; // 🚀 Import Router
+import { useSession } from 'next-auth/react'; // 🚀 Import useSession
 import { ChevronDown } from 'lucide-react';
 import ProductCard from '@/components/ProductCard';
 import { useCart } from '@/hooks/useCart';
 
-// Interface untuk memastikan tipe data aman (Fix TS Errors)
+// Interface
 interface Variant {
   id: string;
   sizeId: string;
@@ -37,6 +39,8 @@ interface ProductDetailProps {
 
 export default function ProductDetailClient({ product, relatedProducts }: ProductDetailProps) {
   const cart = useCart();
+  const router = useRouter(); // 🚀 Inisialisasi Router
+  const { status } = useSession(); // 🚀 Cek status sesi (authenticated / unauthenticated)
 
   // State Management
   const [selectedColorId, setSelectedColorId] = useState<string>(product.variants[0]?.colorId || '');
@@ -44,18 +48,17 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  
+
   // Refs
   const isScrollingRef = useRef(false);
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
 
-  // 1. Logic: Filter warna yang tersedia (Unique Colors) dengan aman
+  // Filter logika (sama seperti sebelumnya)
   const availableColors = useMemo(() => {
     const uniqueColors = new Map();
     product.variants.forEach(v => {
       if (!uniqueColors.has(v.colorId)) {
-        // Fallback jika color kosong
         const safeColor = v.color || { id: v.colorId, name: 'Default', hexCodes: ['#000000'] };
         uniqueColors.set(v.colorId, safeColor);
       }
@@ -63,45 +66,47 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
     return Array.from(uniqueColors.values());
   }, [product.variants]);
 
-  // 2. Logic: Filter varian berdasarkan warna yang dipilih
   const filteredVariants = useMemo(() => {
     return product.variants.filter(v => v.colorId === selectedColorId);
   }, [selectedColorId, product.variants]);
 
-  // 3. Logic: Varian aktif saat ini (Warna & Size terpilih)
   const activeVariant = useMemo(() => {
     return filteredVariants.find(v => v.sizeId === selectedSizeId);
   }, [filteredVariants, selectedSizeId]);
 
-  // 4. Logic: Filter gambar berdasarkan warna
   const displayImages = useMemo(() => {
     const colorImages = product.images.filter(img => img.colorId === selectedColorId);
     return colorImages.length > 0 ? colorImages : product.images;
   }, [selectedColorId, product.images]);
 
-  // Helpers
   const formatRupiah = (angka: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency', currency: 'IDR', minimumFractionDigits: 0,
     }).format(angka);
   };
 
+  // 🚀 FUNGSI ADD TO CART YANG SUDAH DI-UPGRADE
   const handleAddToCart = () => {
+    // 1. Cek apakah user sudah login
+    if (status === 'unauthenticated') {
+      const currentPath = window.location.pathname;
+      router.push(`/register?callbackUrl=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+
     if (!activeVariant) return;
 
     cart.addItem({
-      id: activeVariant.id, 
+      id: activeVariant.id,
       name: product.name,
       price: activeVariant.price,
       image: displayImages[0]?.url || '',
       size: activeVariant.size.name,
-      // Jika tipe CartItem Anda butuh warna, uncomment baris bawah:
-      // color: activeVariant.color?.name 
     });
     alert(`Added ${product.name} (${activeVariant.size.name}) to Bag`);
   };
 
-  // --- Scroll & UI Effects ---
+  // --- Scroll & UI Effects (Sama seperti sebelumnya) ---
   const handleWheel = useCallback((e: WheelEvent) => {
     if (window.innerWidth < 768) return;
     e.preventDefault();
@@ -117,9 +122,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
     }
 
     if (isScrollingRef.current) {
-      setTimeout(() => {
-        isScrollingRef.current = false;
-      }, 400); 
+      setTimeout(() => { isScrollingRef.current = false; }, 400);
     }
   }, [activeImageIndex, displayImages.length]);
 
@@ -135,7 +138,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
 
   return (
     <main className="min-h-screen bg-white text-black relative pb-20 md:pb-0">
-      
+
       {/* SEKSI UTAMA */}
       <section className="pt-0 pb-16 w-full px-4 md:px-8 lg:px-12 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 md:gap-12 items-start md:h-screen">
 
@@ -156,10 +159,9 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
 
         {/* --- PANEL 2: TENGAH (GAMBAR UTAMA) --- */}
         <div className="w-full flex justify-center py-0 md:py-2 md:h-[calc(100vh-50px)] relative">
-
           {/* VERSI MOBILE */}
           <div className="md:hidden relative -mx-4 w-[calc(100%+2rem)] aspect-[1024/1537] bg-gray-50">
-            <div 
+            <div
               className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
               onScroll={(e) => {
                 const scrollLeft = e.currentTarget.scrollLeft;
@@ -173,14 +175,9 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
                 </div>
               ))}
             </div>
-
-            {/* Indikator Titik (Mobile) */}
             <div className="absolute bottom-6 left-0 w-full flex justify-center gap-2 z-10">
               {displayImages.map((_, idx) => (
-                <div 
-                  key={idx} 
-                  className={`h-[3px] transition-all duration-300 rounded-full ${activeImageIndex === idx ? 'w-6 bg-black' : 'w-2 bg-black/30'}`} 
-                />
+                <div key={idx} className={`h-[3px] transition-all duration-300 rounded-full ${activeImageIndex === idx ? 'w-6 bg-black' : 'w-2 bg-black/30'}`} />
               ))}
             </div>
           </div>
@@ -205,7 +202,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
           <h1 className="text-2xl font-serif italic mb-2">{product.name}</h1>
           <p className="text-sm font-medium mb-8">{formatRupiah(activeVariant?.price || product.price)}</p>
 
-          {/* COLOR SELECTION: Disamakan dengan Logika Split-Hex Carousel */}
+          {/* COLOR SELECTION */}
           <div className="mb-8">
             <span className="text-[10px] font-bold uppercase tracking-widest block mb-4">
               Color: {availableColors.find(c => c.id === selectedColorId)?.name}
@@ -213,22 +210,15 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
             <div className="flex flex-wrap gap-3">
               {availableColors.map((color) => {
                 const hexes = color.hexCodes || ['#000000'];
-                
-                // Logic Split Hex Gradient Vertikal
                 let background = hexes[0];
                 if (hexes.length > 1) {
                   const stops = hexes.map((hex: string, i: number) => `${hex} ${(i / hexes.length) * 100}%, ${hex} ${((i + 1) / hexes.length) * 100}%`);
                   background = `linear-gradient(to right, ${stops.join(', ')})`;
                 }
-
                 return (
                   <button
                     key={color.id}
-                    onClick={() => {
-                      setSelectedColorId(color.id);
-                      setSelectedSizeId(null); 
-                      setActiveImageIndex(0);
-                    }}
+                    onClick={() => { setSelectedColorId(color.id); setSelectedSizeId(null); setActiveImageIndex(0); }}
                     className={`w-10 h-10 border transition-all ${selectedColorId === color.id ? 'border-black p-[2px]' : 'border-gray-200 hover:border-gray-400'}`}
                   >
                     <div className="w-full h-full" style={{ background }} />
@@ -244,7 +234,6 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
               <span className="text-[10px] font-bold uppercase tracking-widest">Size</span>
               <button className="text-[9px] underline text-gray-400 uppercase">Size Guide</button>
             </div>
-
             <button
               onClick={() => setOpenAccordion(openAccordion === 'size' ? null : 'size')}
               className="w-full flex justify-between items-center py-4 border-b border-gray-200 text-[11px] uppercase tracking-widest"
@@ -252,17 +241,12 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
               <span>{activeVariant ? activeVariant.size.name : 'Choose Size'}</span>
               <ChevronDown className={`w-3 h-3 transition-transform ${openAccordion === 'size' ? 'rotate-180' : ''}`} />
             </button>
-
-            {/* Dropdown Options */}
             <div className={`absolute top-full left-0 w-full bg-white z-50 border border-gray-100 shadow-xl transition-all ${openAccordion === 'size' ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}>
               {filteredVariants.map((v) => (
                 <button
                   key={v.id}
                   disabled={v.stock <= 0}
-                  onClick={() => {
-                    setSelectedSizeId(v.sizeId);
-                    setOpenAccordion(null);
-                  }}
+                  onClick={() => { setSelectedSizeId(v.sizeId); setOpenAccordion(null); }}
                   className="w-full flex justify-between items-center px-4 py-4 text-[10px] uppercase tracking-widest hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed border-b border-gray-50 last:border-0"
                 >
                   <span className={selectedSizeId === v.sizeId ? 'font-bold' : ''}>{v.size.name}</span>
@@ -297,36 +281,32 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
         </div>
       </section>
 
-      {/* REKOMENDASI YANG SUDAH DI-UPDATE (Mengoper data allColors) */}
+      {/* REKOMENDASI */}
       {relatedProducts.length > 0 && (
         <section className="bg-white border-t border-gray-100 px-4 md:px-12 py-20">
           <h2 className="text-center text-2xl font-serif italic mb-16 uppercase tracking-widest">You May Also Like</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {relatedProducts.map((rel) => {
-              // 🚀 Ekstrak All Colors persis seperti Shop/CMS
               const relColorsMap = new Map();
               (rel.variants || []).forEach((v: any) => {
                 const colorObj = v.color || { id: v.colorId || 'default', name: 'Default', hexCodes: ['#000000'] };
                 if (!relColorsMap.has(colorObj.id)) {
-                  let hexes = ['#000000']; 
-                  if (Array.isArray(colorObj.hexCodes) && colorObj.hexCodes.length > 0) {
-                    hexes = colorObj.hexCodes;
-                  } 
+                  let hexes = ['#000000'];
+                  if (Array.isArray(colorObj.hexCodes) && colorObj.hexCodes.length > 0) hexes = colorObj.hexCodes;
                   relColorsMap.set(colorObj.id, { id: colorObj.id, name: colorObj.name, hexCodes: hexes });
                 }
               });
               const relAllColors = Array.from(relColorsMap.values());
-
               return (
                 <ProductCard
                   key={rel.id}
                   product={{
                     id: rel.id,
                     name: rel.name,
-                    price: rel.variants?.[0]?.price || rel.price, // Fallback harga
+                    price: rel.variants?.[0]?.price || rel.price,
                     images: rel.images?.map((i: any) => i.url) || [],
                     status: 'available',
-                    allColors: relAllColors // 🚀 Lemparkan data warna ke Card!
+                    allColors: relAllColors
                   }}
                 />
               );

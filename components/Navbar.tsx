@@ -4,9 +4,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import CartDrawer from '@/components/CartDrawer';
+import { User, LogOut } from 'lucide-react'; // 🚀 Tambahkan Ikon
+import { signOut } from 'next-auth/react'; // 🚀 Fungsi logout di sisi client
 
-// 🚀 Terima data tema dari layout
-export default function Navbar({ data }: { data?: any }) {
+// 🚀 Terima data tema dan session dari layout
+export default function Navbar({ data, session }: { data?: any, session?: any }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -68,9 +70,26 @@ export default function Navbar({ data }: { data?: any }) {
             </Link>
           </div>
 
-          {/* Kanan */}
-          <div className="flex-1 flex justify-end gap-4 md:gap-8 text-[10px] md:text-xs uppercase tracking-widest font-light items-center">
+          {/* Kanan: Search, Auth & Cart */}
+          <div className="flex-1 flex justify-end gap-4 md:gap-6 text-[10px] md:text-xs uppercase tracking-widest font-light items-center">
             <button className="hover:opacity-50 transition-opacity hidden md:block">SEARCH</button>
+
+            {/* 🚀 LOGIKA AUTHENTIKASI (Hanya Tampil di Desktop) */}
+            <div className="hidden md:flex items-center gap-4 border-l border-gray-200 pl-4">
+              {session ? (
+                <>
+                  <Link href="/account" className="flex items-center gap-1.5 hover:opacity-50 transition-opacity">
+                    <User className="w-3.5 h-3.5" />
+                    <span>{session.user?.name?.split(' ')[0] || 'ACCOUNT'}</span>
+                  </Link>
+                </>
+              ) : (
+                <Link href="/register" className="hover:opacity-50 transition-opacity">
+                  SIGN IN
+                </Link>
+              )}
+            </div>
+
             <CartDrawer />
           </div>
         </nav>
@@ -79,6 +98,7 @@ export default function Navbar({ data }: { data?: any }) {
       {/* Drawer Overlay */}
       {isMenuOpen && <div className="fixed inset-0 z-50 bg-transparent" onClick={() => setIsMenuOpen(false)} />}
 
+      {/* Mobile Drawer */}
       <div
         className={`fixed top-0 left-0 h-[100dvh] w-[80vw] md:w-[400px] bg-black/70 backdrop-blur-md text-white z-[60] transform transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
@@ -86,7 +106,7 @@ export default function Navbar({ data }: { data?: any }) {
           <button onClick={() => setIsMenuOpen(false)} className="text-3xl font-light hover:opacity-50 transition-opacity">&times;</button>
         </div>
 
-        {/* 🚀 RENDER MENU UTAMA SECARA DINAMIS DARI DATABASE */}
+        {/* Menu Utama Dinamis */}
         <div className="flex flex-col gap-4 p-8 text-md font-light tracking-wide uppercase mt-4">
           {navLinks.map((link: any, idx: number) => (
             <Link key={idx} href={link.url} onClick={() => setIsMenuOpen(false)} className="transition-transform hover:text-gray-300">
@@ -97,6 +117,22 @@ export default function Navbar({ data }: { data?: any }) {
 
         {/* Menu Sekunder (Footer Drawer) */}
         <div className="mt-auto p-8 flex flex-col gap-8">
+
+          {/* 🚀 LOGIKA AUTHENTIKASI (Khusus Mobile di dalam Drawer) */}
+          <div className="md:hidden flex flex-col gap-4 text-[10px] md:text-xs font-light tracking-widest uppercase border-b border-white/20 pb-6">
+            {session ? (
+              <>
+                <Link href="/account" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 hover:text-gray-300 transition-colors">
+                  <User className="w-4 h-4" /> My Account
+                </Link>
+              </>
+            ) : (
+              <Link href="/register" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 hover:text-gray-300 transition-colors">
+                <User className="w-4 h-4" /> Sign In / Register
+              </Link>
+            )}
+          </div>
+
           <div className="flex flex-col gap-4 text-[10px] md:text-xs font-light tracking-widest">
             <Link href="/faq" onClick={() => setIsMenuOpen(false)} className="hover:text-white transition-colors">FAQs</Link>
             <Link href="/careers" onClick={() => setIsMenuOpen(false)} className="hover:text-white transition-colors">Careers</Link>
@@ -104,7 +140,6 @@ export default function Navbar({ data }: { data?: any }) {
           </div>
 
           <div className="pt-6 border-white/20">
-            {/* 🚀 Menggunakan data copyright dinamis dari database, atau fallback */}
             <p className="text-[9px] tracking-[0.2em] uppercase font-light">
               {data?.copyright || `© ${new Date().getFullYear()} ALIVE MANSION`}
             </p>
