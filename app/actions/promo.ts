@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { revalidatePath } from 'next/cache';
 
-// 🔒 SECURITY CHECK: Pastikan hanya Admin / Staff yang bisa menjalankan fungsi ini
+// 🔒 SECURITY CHECK
 async function verifyAdmin() {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
@@ -15,30 +15,28 @@ async function verifyAdmin() {
   }
 }
 
-// 1. GET ALL PROMOS (Menampilkan daftar promo di tabel admin)
+// 1. GET ALL PROMOS
 export async function getPromosAction() {
   await verifyAdmin();
 
   return await prisma.promo.findMany({
     orderBy: { createdAt: 'desc' },
-    // Ambil juga jumlah user spesifik jika promo ini tipe SPECIFIC_USERS
     include: {
       _count: {
-        select: { allowedUsers: true }
+        // 🚀 MENGHITUNG BERAPA TIKET YANG SUDAH DIKLAIM USER
+        select: { claimedVouchers: true }
       }
     }
   });
 }
 
-// 2. CREATE PROMO (Membuat voucher baru)
+// 2. CREATE PROMO
 export async function createPromoAction(data: any) {
   await verifyAdmin();
 
   try {
-    // Format kode: Huruf besar semua dan hilangkan spasi (misal: " welcome 50 " -> "WELCOME50")
     const cleanCode = data.code.toUpperCase().replace(/\s+/g, '');
 
-    // Cek apakah kode sudah pernah dipakai
     const existingPromo = await prisma.promo.findUnique({
       where: { code: cleanCode }
     });
@@ -47,15 +45,19 @@ export async function createPromoAction(data: any) {
       return { error: 'Promo code already exists! Please use a different code.' };
     }
 
-    // Simpan ke database
     await prisma.promo.create({
       data: {
-        ...data,
+        name: data.name,
         code: cleanCode,
+        type: data.type,
+        value: data.value,
+        minPurchase: data.minPurchase,
+        audience: data.audience,
+        quotaTotal: data.quotaTotal || null,         // 🚀 DATA BARU
+        maxClaimsPerUser: data.maxClaimsPerUser || 1 // 🚀 DATA BARU
       }
     });
 
-    // 🚀 Refresh halaman admin secara instan tanpa perlu reload browser
     revalidatePath('/admin/promos');
     return { success: true };
 
@@ -65,7 +67,7 @@ export async function createPromoAction(data: any) {
   }
 }
 
-// 3. TOGGLE STATUS (Tombol switch on/off voucher dengan cepat)
+// 3. TOGGLE STATUS
 export async function togglePromoStatusAction(id: string, isActive: boolean) {
   await verifyAdmin();
 
@@ -78,7 +80,7 @@ export async function togglePromoStatusAction(id: string, isActive: boolean) {
   return { success: true };
 }
 
-// 4. DELETE PROMO (Menghapus voucher permanen)
+// 4. DELETE PROMO
 export async function deletePromoAction(id: string) {
   await verifyAdmin();
 

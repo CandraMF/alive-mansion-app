@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, AlertCircle, Mail, Lock, User } from 'lucide-react';
+import { Loader2, AlertCircle, Mail, Lock, User, Ticket, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,26 +12,23 @@ import Link from 'next/link';
 export default function CustomerAuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  // 🚀 Tangkap URL sebelumnya. Jika tidak ada, default ke home (/)
   const callbackUrl = searchParams.get('callbackUrl') || '/';
 
-  // State untuk mengatur apakah sedang di mode Login atau Register
   const [isLoginMode, setIsLoginMode] = useState(true);
-
-  // Form States
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 🚀 Fungsi Login dengan Google (Sekarang menggunakan callbackUrl)
+  // 🚀 STATE BARU UNTUK LAYAR SUKSES
+  const [isSuccessRegistration, setIsSuccessRegistration] = useState(false);
+  const [rewardData, setRewardData] = useState<any>(null);
+
   const handleGoogleSignIn = () => {
     signIn('google', { callbackUrl });
   };
 
-  // Fungsi Handle Submit (Bisa untuk Login atau Register)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -39,23 +36,16 @@ export default function CustomerAuthPage() {
 
     try {
       if (isLoginMode) {
-        // --- PROSES LOGIN MANUAL ---
-        const res = await signIn('credentials', {
-          email,
-          password,
-          redirect: false,
-        });
-
+        const res = await signIn('credentials', { email, password, redirect: false });
         if (res?.error) {
-          setError("Email atau password salah.");
+          setError("Invalid email or password.");
           setIsLoading(false);
         } else {
-          // 🚀 Kembali ke halaman produk (atau home) setelah login sukses
           router.push(callbackUrl);
           router.refresh();
         }
       } else {
-        // --- PROSES REGISTRASI AKUN BARU ---
+        // --- PROSES REGISTRASI ---
         const res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -68,20 +58,83 @@ export default function CustomerAuthPage() {
           setError(data.error);
           setIsLoading(false);
         } else {
-          // 🚀 Jika registrasi berhasil, otomatis langsung Login dan kembali ke halaman sebelumnya!
-          await signIn('credentials', {
-            email,
-            password,
-            callbackUrl,
-          });
+          // 🚀 JIKA SUKSES, SIMPAN REWARD DAN TAMPILKAN LAYAR SELAMAT
+          setRewardData(data.reward);
+          setIsSuccessRegistration(true);
+
+          // Login di latar belakang agar sesi langsung aktif
+          await signIn('credentials', { email, password, redirect: false });
+          setIsLoading(false);
         }
       }
     } catch (err) {
-      setError('Terjadi kesalahan. Silakan coba lagi.');
+      setError('An error occurred. Please try again.');
       setIsLoading(false);
     }
   };
 
+  // ==========================================
+  // 🚀 TAMPILAN LAYAR SUKSES DAPAT VOUCHER
+  // ==========================================
+  if (isSuccessRegistration) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+        <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl border border-gray-100 text-center animate-in zoom-in-95 duration-500">
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 bg-green-100 rounded-full animate-ping opacity-75"></div>
+              <CheckCircle2 className="w-16 h-16 text-green-500 relative z-10" />
+            </div>
+          </div>
+
+          <h1 className="text-3xl font-serif italic text-gray-900 mb-2">Welcome to Alive!</h1>
+          <p className="text-xs text-gray-500 leading-relaxed mb-8">
+            Your account has been created successfully.
+          </p>
+
+          {/* Kartu Hadiah (Hanya muncul jika ada hadiah dari Backend) */}
+          {rewardData && (
+            <div className="bg-black text-white p-6 rounded-xl mb-8 relative overflow-hidden">
+              <div className="absolute -right-4 -top-4 opacity-10">
+                <Ticket className="w-24 h-24" />
+              </div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Exclusive Reward Unlocked</p>
+              <h2 className="text-xl font-bold mb-1">{rewardData.name}</h2>
+              <p className="text-xs text-gray-300">
+                {rewardData.type === 'PERCENTAGE' ? `${rewardData.value}% OFF` :
+                  rewardData.type === 'NOMINAL' ? `IDR ${rewardData.value.toLocaleString('id-ID')}` : 'FREE SHIPPING'}
+              </p>
+              <div className="mt-4 pt-4 border-t border-white/20 flex justify-between items-center">
+                <span className="text-[10px] text-gray-400">VOUCHER CODE</span>
+                <span className="font-mono text-sm tracking-widest bg-white/20 px-3 py-1 rounded">{rewardData.code}</span>
+              </div>
+            </div>
+          )}
+
+          <Button
+            onClick={() => {
+              router.push(callbackUrl);
+              router.refresh();
+            }}
+            className="w-full h-12 bg-black hover:bg-gray-900 text-white font-bold uppercase tracking-widest text-[10px] transition-all group"
+          >
+            {rewardData ? 'Claim & Continue Shopping' : 'Continue Shopping'}
+            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+          </Button>
+
+          {rewardData && (
+            <p className="text-[9px] text-gray-400 mt-4 uppercase tracking-widest">
+              You can view this voucher anytime in your Account dashboard.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // TAMPILAN DEFAULT LOGIN / REGISTER
+  // ==========================================
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full bg-white p-8 md:p-10 rounded-2xl shadow-xl border border-gray-100">
@@ -101,8 +154,6 @@ export default function CustomerAuthPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-
-          {/* Input Nama (Hanya muncul jika mode Register) */}
           {!isLoginMode && (
             <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
               <Label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Full Name</Label>
@@ -173,7 +224,6 @@ export default function CustomerAuthPage() {
           <div className="flex-grow border-t border-gray-200"></div>
         </div>
 
-        {/* TOMBOL GOOGLE */}
         <Button
           type="button"
           onClick={handleGoogleSignIn}
@@ -184,12 +234,11 @@ export default function CustomerAuthPage() {
           Continue with Google
         </Button>
 
-        {/* Toggle Login/Register Mode */}
         <div className="mt-8 text-center">
           <p className="text-[11px] text-gray-500">
             {isLoginMode ? "Don't have an account? " : "Already have an account? "}
             <button
-              type="button" // 🚀 Penyelamat form, mencegah auto-submit!
+              type="button"
               onClick={() => {
                 setIsLoginMode(!isLoginMode);
                 setError('');

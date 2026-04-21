@@ -9,7 +9,6 @@ import {
 } from '@/app/actions/promo';
 import { Plus, Trash2, AlertCircle, Loader2, Tag, Ticket, CheckCircle2, XCircle } from 'lucide-react';
 
-// Format Rupiah
 const formatRupiah = (angka: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
 };
@@ -21,7 +20,7 @@ export default function AdminPromosPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // Form States
+  // 🚀 FORM STATE DIPERBARUI
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -29,16 +28,17 @@ export default function AdminPromosPage() {
     value: 0,
     minPurchase: 0,
     audience: 'ALL_USERS',
+    quotaTotal: 0, // 0 artinya tanpa batas
+    maxClaimsPerUser: 1,
   });
 
-  // Load Data
   const loadPromos = async () => {
     setIsLoading(true);
     try {
       const data = await getPromosAction();
       setPromos(data);
     } catch (err) {
-      console.error("Gagal memuat promo");
+      console.error("Failed to load promos");
     } finally {
       setIsLoading(false);
     }
@@ -48,15 +48,13 @@ export default function AdminPromosPage() {
     loadPromos();
   }, []);
 
-  // Handle Submit Form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
 
-    // Validasi sederhana
     if (!formData.code || !formData.name || formData.value <= 0) {
-      setError('Kode, Nama, dan Nilai Diskon wajib diisi dengan benar.');
+      setError('Code, Name, and Discount Value are required.');
       setIsSubmitting(false);
       return;
     }
@@ -65,43 +63,42 @@ export default function AdminPromosPage() {
       ...formData,
       value: Number(formData.value),
       minPurchase: Number(formData.minPurchase),
+      quotaTotal: formData.quotaTotal > 0 ? Number(formData.quotaTotal) : null,
+      maxClaimsPerUser: Number(formData.maxClaimsPerUser),
     });
 
-    if (res.error) {
+    if (res?.error) {
       setError(res.error);
     } else {
       setIsModalOpen(false);
-      setFormData({ code: '', name: '', type: 'PERCENTAGE', value: 0, minPurchase: 0, audience: 'ALL_USERS' }); // Reset form
-      loadPromos(); // Refresh tabel
+      setFormData({ code: '', name: '', type: 'PERCENTAGE', value: 0, minPurchase: 0, audience: 'ALL_USERS', quotaTotal: 0, maxClaimsPerUser: 1 });
+      loadPromos();
     }
     setIsSubmitting(false);
   };
 
-  // Handle Toggle Status
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     await togglePromoStatusAction(id, !currentStatus);
-    loadPromos(); // Refresh tabel
+    loadPromos();
   };
 
-  // Handle Delete
   const handleDelete = async (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus voucher ini permanen?")) {
+    if (confirm("Are you sure you want to delete this promo permanently?")) {
       await deletePromoAction(id);
-      loadPromos(); // Refresh tabel
+      loadPromos();
     }
   };
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto font-sans">
 
-      {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
           <h1 className="text-2xl font-serif italic text-gray-900 mb-1 flex items-center gap-2">
             <Ticket className="w-6 h-6" /> Promo & Vouchers
           </h1>
           <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">
-            Manage your discount codes and marketing campaigns
+            Manage your discount codes and user claims
           </p>
         </div>
         <button
@@ -112,15 +109,15 @@ export default function AdminPromosPage() {
         </button>
       </div>
 
-      {/* Tabel Data */}
       <div className="bg-white border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-500 font-bold">
               <tr>
-                <th className="px-6 py-4">Promo Code</th>
+                <th className="px-6 py-4">Promo Details</th>
                 <th className="px-6 py-4">Value</th>
-                <th className="px-6 py-4">Target Audience</th>
+                <th className="px-6 py-4">Audience</th>
+                <th className="px-6 py-4">Usage & Quota</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
@@ -128,14 +125,14 @@ export default function AdminPromosPage() {
             <tbody className="divide-y divide-gray-50 text-xs">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
                     Loading data...
                   </td>
                 </tr>
               ) : promos.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                     <Tag className="w-8 h-8 mx-auto mb-3 opacity-20" />
                     <p className="uppercase tracking-widest text-[10px] font-bold">No promos found.</p>
                   </td>
@@ -160,6 +157,15 @@ export default function AdminPromosPage() {
                       <span className="inline-block bg-gray-100 px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-gray-600 rounded-sm">
                         {promo.audience.replace(/_/g, ' ')}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {/* 🚀 MENAMPILKAN STATISTIK KLAIM VOUCHER */}
+                      <div className="text-[10px] font-medium text-gray-900">
+                        Claimed: {promo._count.claimedVouchers} {promo.quotaTotal ? `/ ${promo.quotaTotal}` : '(No Limit)'}
+                      </div>
+                      <div className="text-[9px] text-gray-500 uppercase tracking-widest mt-1">
+                        Max {promo.maxClaimsPerUser} / user
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <button
@@ -187,43 +193,42 @@ export default function AdminPromosPage() {
         </div>
       </div>
 
-      {/* Modal Buat Promo Baru */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 rounded-lg">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
               <h2 className="text-sm font-bold uppercase tracking-widest">Create New Promo</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-black text-xl">&times;</button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 flex items-start gap-2">
+                <div className="p-3 bg-red-50 border border-red-200 flex items-start gap-2 rounded-md">
                   <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                   <p className="text-[11px] font-medium text-red-700">{error}</p>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5 col-span-2 md:col-span-1">
+                <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Promo Code</label>
                   <input
                     type="text"
                     placeholder="e.g. WELCOME50"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors uppercase"
+                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors uppercase rounded-md"
                     required
                   />
                 </div>
-                <div className="space-y-1.5 col-span-2 md:col-span-1">
+                <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Campaign Name</label>
                   <input
                     type="text"
                     placeholder="e.g. New Year Sale"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors"
+                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors rounded-md"
                     required
                   />
                 </div>
@@ -235,7 +240,7 @@ export default function AdminPromosPage() {
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors"
+                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors rounded-md"
                   >
                     <option value="PERCENTAGE">Percentage (%)</option>
                     <option value="NOMINAL">Nominal (Rp)</option>
@@ -249,47 +254,59 @@ export default function AdminPromosPage() {
                     placeholder={formData.type === 'PERCENTAGE' ? "e.g. 20" : "e.g. 50000"}
                     value={formData.value || ''}
                     onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
-                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors"
+                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors rounded-md"
                     required
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Target Audience</label>
-                <select
-                  value={formData.audience}
-                  onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
-                  className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors"
-                >
-                  <option value="ALL_USERS">All Users</option>
-                  <option value="NEW_USERS_ONLY">New Users Only</option>
-                  <option value="SPECIFIC_USERS">Specific Users (Voucher Apology / VIP)</option>
-                </select>
+              <div className="grid grid-cols-3 gap-4 border-t border-gray-100 pt-6">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Target Audience</label>
+                  <select
+                    value={formData.audience}
+                    onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
+                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors rounded-md"
+                  >
+                    <option value="ALL_USERS">All Users</option>
+                    <option value="NEW_USERS_ONLY">New Users Only</option>
+                    <option value="SPECIFIC_USERS">Specific Users</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Total Quota (0 = Unlim)</label>
+                  <input
+                    type="number"
+                    value={formData.quotaTotal || ''}
+                    onChange={(e) => setFormData({ ...formData, quotaTotal: Number(e.target.value) })}
+                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors rounded-md"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Max Claims / User</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.maxClaimsPerUser}
+                    onChange={(e) => setFormData({ ...formData, maxClaimsPerUser: Number(e.target.value) })}
+                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors rounded-md"
+                    required
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Minimum Purchase (Rp)</label>
-                <input
-                  type="number"
-                  value={formData.minPurchase || ''}
-                  onChange={(e) => setFormData({ ...formData, minPurchase: Number(e.target.value) })}
-                  className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors"
-                />
-              </div>
-
-              <div className="pt-4 flex gap-3">
+              <div className="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-6">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:bg-gray-100 transition-colors border border-transparent"
+                  className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:bg-gray-100 transition-colors rounded-md"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 bg-black text-white py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-gray-900 transition-colors disabled:bg-gray-300"
+                  className="px-8 bg-black text-white py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-gray-900 transition-colors disabled:bg-gray-300 rounded-md"
                 >
                   {isSubmitting ? 'Saving...' : 'Save Promo'}
                 </button>

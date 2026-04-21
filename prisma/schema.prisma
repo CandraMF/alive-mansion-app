@@ -196,18 +196,12 @@ model ThemeSetting {
   updatedAt DateTime @updatedAt
 }
 
-// ==========================================
-// 🔐 AUTHENTICATION & USERS (NEXTAUTH)
-// ==========================================
-
-// 1. Kasta Jabatan
 enum Role {
-  SUPER_ADMIN // Pemegang kunci utama (Bisa ubah CMS, Theme, dll)
-  STAFF // Admin operasional (Kelola produk, pesanan)
-  CUSTOMER // Pembeli biasa
+  SUPER_ADMIN
+  STAFF
+  CUSTOMER
 }
 
-// 2. Izin Spesifik (Granular Permissions)
 enum Permission {
   ACCESS_DASHBOARD
   ACCESS_CMS
@@ -220,7 +214,6 @@ enum Permission {
   MANAGE_SETTINGS
 }
 
-// 3. Tabel Utama Pengguna
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -228,31 +221,21 @@ model User {
   emailVerified DateTime?
   image         String?
 
-  // Untuk login manual pakai Email & Password
   password String?
 
-  // Aturan saklek: Siapapun yang mendaftar otomatis jadi CUSTOMER
-  role Role @default(CUSTOMER)
-
-  // Daftar izin khusus (opsional, bisa diisi oleh Super Admin nanti)
+  role        Role         @default(CUSTOMER)
   permissions Permission[]
 
-  // Relasi wajib untuk NextAuth (Google Login / Session)
-  accounts Account[]
-  sessions Session[]
-  specificPromos Promo[]  @relation("PromoToUser")
-
+  accounts  Account[]
+  sessions  Session[]
   cartItems CartItem[]
+
+  vouchers UserVoucher[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// ==========================================
-// ⚙️ TABEL PENDUKUNG NEXTAUTH (WAJIB ADA)
-// ==========================================
-
-// Menyimpan data penghubung ke Google / Provider lain
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -272,7 +255,6 @@ model Account {
   @@unique([provider, providerAccountId])
 }
 
-// Menyimpan sesi user yang sedang aktif
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
@@ -281,7 +263,6 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// Untuk fitur "Forgot Password" atau verifikasi email
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -289,10 +270,6 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
-
-// ==========================================
-// 🎟️ PROMO & VOUCHERS
-// ==========================================
 
 enum PromoType {
   PERCENTAGE
@@ -303,7 +280,13 @@ enum PromoType {
 enum PromoAudience {
   ALL_USERS
   NEW_USERS_ONLY
-  SPECIFIC_USERS // 🚀 TAMBAHAN: Khusus untuk user tertentu
+  SPECIFIC_USERS
+}
+
+enum VoucherStatus {
+  AVAILABLE
+  USED
+  EXPIRED
 }
 
 model Promo {
@@ -319,38 +302,49 @@ model Promo {
 
   audience PromoAudience @default(ALL_USERS)
 
-  // 🚀 RELASI: Daftar user yang berhak memakai promo ini (Jika SPECIFIC_USERS)
-  allowedUsers User[] @relation("PromoToUser")
+  claimedVouchers UserVoucher[]
 
   startDate DateTime  @default(now())
   endDate   DateTime?
   isActive  Boolean   @default(true)
 
-  quotaTotal      Int?
-  quotaUsed       Int  @default(0)
-  maxUsagePerUser Int  @default(1)
+  quotaTotal       Int?
+  quotaUsed        Int  @default(0)
+  maxClaimsPerUser Int  @default(1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// ==========================================
-// 🛒 PERSISTENT SHOPPING CART
-// ==========================================
+model UserVoucher {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  promoId String
+  promo   Promo  @relation(fields: [promoId], references: [id], onDelete: Cascade)
+
+  status VoucherStatus @default(AVAILABLE)
+
+  usedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 
 model CartItem {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   variantId String
-  variant   Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  
-  quantity  Int      @default(1)
+  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  quantity Int @default(1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Memastikan satu user tidak punya baris ganda untuk varian yang sama
   @@unique([userId, variantId])
 }
