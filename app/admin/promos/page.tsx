@@ -13,6 +13,13 @@ const formatRupiah = (angka: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
 };
 
+// 🚀 HELPER FORMAT TANGGAL BARU
+const formatDate = (dateString: string | Date) => {
+  return new Intl.DateTimeFormat('en-US', { 
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  }).format(new Date(dateString));
+};
+
 export default function AdminPromosPage() {
   const [promos, setPromos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,7 +27,7 @@ export default function AdminPromosPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // 🚀 FORM STATE DIPERBARUI
+  // 🚀 TAMBAHAN STATE: startDate & endDate
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -28,8 +35,10 @@ export default function AdminPromosPage() {
     value: 0,
     minPurchase: 0,
     audience: 'ALL_USERS',
-    quotaTotal: 0, // 0 artinya tanpa batas
+    quotaTotal: 0, 
     maxClaimsPerUser: 1,
+    startDate: '',
+    endDate: '',
   });
 
   const loadPromos = async () => {
@@ -65,13 +74,15 @@ export default function AdminPromosPage() {
       minPurchase: Number(formData.minPurchase),
       quotaTotal: formData.quotaTotal > 0 ? Number(formData.quotaTotal) : null,
       maxClaimsPerUser: Number(formData.maxClaimsPerUser),
+      startDate: formData.startDate || undefined,
+      endDate: formData.endDate || undefined,
     });
 
     if (res?.error) {
       setError(res.error);
     } else {
       setIsModalOpen(false);
-      setFormData({ code: '', name: '', type: 'PERCENTAGE', value: 0, minPurchase: 0, audience: 'ALL_USERS', quotaTotal: 0, maxClaimsPerUser: 1 });
+      setFormData({ code: '', name: '', type: 'PERCENTAGE', value: 0, minPurchase: 0, audience: 'ALL_USERS', quotaTotal: 0, maxClaimsPerUser: 1, startDate: '', endDate: '' });
       loadPromos();
     }
     setIsSubmitting(false);
@@ -143,6 +154,10 @@ export default function AdminPromosPage() {
                     <td className="px-6 py-4">
                       <div className="font-bold text-black text-sm">{promo.code}</div>
                       <div className="text-[10px] text-gray-500">{promo.name}</div>
+                      {/* 🚀 TAMPILKAN TANGGAL KEDALUWARSA */}
+                      <div className="text-[9px] text-orange-600 uppercase tracking-widest mt-1">
+                        {promo.endDate ? `Exp: ${formatDate(promo.endDate)}` : 'No Expiry'}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-bold">
@@ -159,7 +174,6 @@ export default function AdminPromosPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      {/* 🚀 MENAMPILKAN STATISTIK KLAIM VOUCHER */}
                       <div className="text-[10px] font-medium text-gray-900">
                         Claimed: {promo._count.claimedVouchers} {promo.quotaTotal ? `/ ${promo.quotaTotal}` : '(No Limit)'}
                       </div>
@@ -194,9 +208,9 @@ export default function AdminPromosPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200 rounded-lg my-8">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 sticky top-0 z-10">
               <h2 className="text-sm font-bold uppercase tracking-widest">Create New Promo</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-black text-xl">&times;</button>
             </div>
@@ -256,6 +270,28 @@ export default function AdminPromosPage() {
                     onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
                     className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors rounded-md"
                     required
+                  />
+                </div>
+              </div>
+
+              {/* 🚀 TAMBAHAN: FIELD START DATE & END DATE */}
+              <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-6">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Start Date (Optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors rounded-md"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">End Date / Expiry (Optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors rounded-md"
                   />
                 </div>
               </div>

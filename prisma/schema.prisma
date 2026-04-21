@@ -118,6 +118,9 @@ model Order {
 
   items OrderItem[]
 
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -231,6 +234,8 @@ model User {
   cartItems CartItem[]
 
   vouchers UserVoucher[]
+
+  orders Order[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -23,7 +23,6 @@ export async function getPromosAction() {
     orderBy: { createdAt: 'desc' },
     include: {
       _count: {
-        // 🚀 MENGHITUNG BERAPA TIKET YANG SUDAH DIKLAIM USER
         select: { claimedVouchers: true }
       }
     }
@@ -53,8 +52,10 @@ export async function createPromoAction(data: any) {
         value: data.value,
         minPurchase: data.minPurchase,
         audience: data.audience,
-        quotaTotal: data.quotaTotal || null,         // 🚀 DATA BARU
-        maxClaimsPerUser: data.maxClaimsPerUser || 1 // 🚀 DATA BARU
+        quotaTotal: data.quotaTotal || null,
+        maxClaimsPerUser: data.maxClaimsPerUser || 1,
+        startDate: data.startDate ? new Date(data.startDate) : new Date(),
+        endDate: data.endDate ? new Date(data.endDate) : null,
       }
     });
 
