@@ -48,11 +48,11 @@ export default function CartPage() {
                   </div>
                   <div className="flex flex-col justify-center">
                     <h3 className="text-xs font-bold uppercase tracking-wider">{item.name}</h3>
-                    <p className="text-[10px] text-gray-500 uppercase mt-2">Size: {item.size}</p>
+                    <p className="text-[10px] text-gray-500 uppercase mt-2">Color: {item.color} &nbsp;|&nbsp; Size: {item.size}</p>
                     <button onClick={() => cart.removeItem(item.id, item.size)} className="text-[9px] uppercase tracking-widest text-red-500 mt-4 text-left">Remove</button>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center">
                   <div className="flex items-center border border-gray-200">
                     <button onClick={() => cart.updateQuantity(item.id, item.size, Math.max(1, item.quantity - 1))} className="px-4 py-2 text-xs">-</button>

@@ -6,36 +6,26 @@ import LoadingScreen from '@/components/LoadingScreen';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import AuthProvider from '@/components/AuthProvider'; // 🚀 Import Provider Baru
+import AuthProvider from '@/components/AuthProvider';
+import InitCart from '@/components/InitCart'; // 🚀 Ganti import ini
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  // Ambil data tema langsung dari database
-  const themeSettings = await prisma.themeSetting.findUnique({
-    where: { key: 'global' }
-  });
-
-  // Ambil status login user
+  const themeSettings = await prisma.themeSetting.findUnique({ where: { key: 'global' } });
   const session = await getServerSession(authOptions);
-
-  // Siapkan data untuk dikirim ke komponen
-  const navbarData = themeSettings?.navbar || {};
-  const footerData = themeSettings?.footer || {};
 
   return (
     <div className="relative min-h-screen flex flex-col">
       <LoadingScreen />
-
-      {/* Oper data tema DAN session ke Navbar */}
-      <Navbar data={navbarData} session={session} />
+      <Navbar data={themeSettings?.navbar || {}} session={session} />
 
       <main className="flex-1 pt-12">
-        {/* 🚀 BUNGKUS CHILDREN DENGAN AUTH PROVIDER */}
         <AuthProvider>
+          <InitCart /> {/* 🚀 Pasang di sini */}
           {children}
         </AuthProvider>
       </main>
 
-      <Footer data={footerData} />
+      <Footer data={themeSettings?.footer || {}} />
     </div>
   );
 }

@@ -87,7 +87,7 @@ export default function CartDrawer() {
                             <span className="text-[10px] font-bold uppercase tracking-widest">{item.name}</span>
                             <button onClick={() => cart.removeItem(item.id, item.size)} className="text-gray-400 hover:text-black">&times;</button>
                           </div>
-                          <span className="text-[9px] text-gray-500 uppercase mt-1">Size: {item.size}</span>
+                          <span className="text-[9px] text-gray-500 uppercase mt-1">Color: {item.color} &nbsp;|&nbsp; Size: {item.size}</span>
                           <div className="mt-auto flex justify-between items-center">
                             <div className="flex items-center border border-gray-200">
                               <button onClick={() => cart.updateQuantity(item.id, item.size, Math.max(1, item.quantity - 1))} className="px-2 py-1 text-[10px] hover:bg-gray-50">-</button>

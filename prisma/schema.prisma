@@ -102,6 +102,8 @@ model Variant {
 
   blocks Block[]
 
+  cartItems CartItem[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -240,6 +242,8 @@ model User {
   sessions Session[]
   specificPromos Promo[]  @relation("PromoToUser")
 
+  cartItems CartItem[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -328,4 +332,25 @@ model Promo {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 🛒 PERSISTENT SHOPPING CART
+// ==========================================
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  variantId String
+  variant   Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  quantity  Int      @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Memastikan satu user tidak punya baris ganda untuk varian yang sama
+  @@unique([userId, variantId])
 }

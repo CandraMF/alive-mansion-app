@@ -1,75 +1,84 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { 
+  getCartAction, addToCartAction, 
+  updateCartItemAction, removeFromCartAction, clearCartAction 
+} from '@/app/actions/cart';
 
-// 1. Tipe Data untuk Barang di Keranjang
 export interface CartItem {
-  id: string;
+  id: string; 
   name: string;
   price: number;
   image: string;
   size: string;
+  color: string; 
   quantity: number;
 }
 
-// 2. Tipe Data untuk Fungsi-fungsi Keranjang
 interface CartStore {
   items: CartItem[];
-  addItem: (data: Omit<CartItem, 'quantity'>) => void;
-  removeItem: (id: string, size: string) => void;
-  updateQuantity: (id: string, size: string, quantity: number) => void;
-  clearCart: () => void;
+  isLoading: boolean;
+  fetchCart: () => Promise<void>;
+  addItem: (data: Omit<CartItem, 'quantity'>) => Promise<void>;
+  removeItem: (id: string, size: string) => Promise<void>;
+  updateQuantity: (id: string, size: string, quantity: number) => Promise<void>;
+  clearCart: () => Promise<void>;
 }
 
-// 3. Membuat Store dengan Zustand + LocalStorage
-export const useCart = create<CartStore>()(
-  persist(
-    (set, get) => ({
-      items: [],
+export const useCart = create<CartStore>((set, get) => ({
+  items: [],
+  isLoading: false,
 
-      // Fungsi Menambah Barang
-      addItem: (data) => {
-        const currentItems = get().items;
-        // Cek apakah barang dengan ID dan Ukuran yang SAMA sudah ada di keranjang
-        const existingItem = currentItems.find(
-          (item) => item.id === data.id && item.size === data.size
-        );
-
-        if (existingItem) {
-          // Jika sudah ada, tambahkan quantity-nya saja
-          set({
-            items: currentItems.map((item) =>
-              item.id === data.id && item.size === data.size
-                ? { ...item, quantity: item.quantity + 1 }
-                : item
-            ),
-          });
-        } else {
-          // Jika belum ada, masukkan sebagai barang baru dengan quantity 1
-          set({ items: [...currentItems, { ...data, quantity: 1 }] });
-        }
-      },
-
-      // Fungsi Menghapus Barang Spesifik
-      removeItem: (id, size) => {
-        set({
-          items: get().items.filter((item) => !(item.id === id && item.size === size)),
-        });
-      },
-
-      // Fungsi Mengubah Jumlah Barang (+ / -)
-      updateQuantity: (id, size, quantity) => {
-        set({
-          items: get().items.map((item) =>
-            item.id === id && item.size === size ? { ...item, quantity } : item
-          ),
-        });
-      },
-
-      // Fungsi Mengosongkan Keranjang (Setelah Checkout)
-      clearCart: () => set({ items: [] }),
-    }),
-    {
-      name: 'cart-storage', // Nama key yang akan disimpan di LocalStorage browser
+  // Tarik data dari Database saat pertama kali masuk web
+  fetchCart: async () => {
+    set({ isLoading: true });
+    try {
+      const items = await getCartAction();
+      set({ items });
+    } catch (error) {
+      console.error("Gagal menarik data keranjang", error);
+    } finally {
+      set({ isLoading: false });
     }
-  )
-);
+  },
+
+  addItem: async (data) => {
+    const currentItems = get().items;
+    const existingItem = currentItems.find((item) => item.id === data.id);
+
+    if (existingItem) {
+      set({ items: currentItems.map((item) => item.id === data.id ? { ...item, quantity: item.quantity + 1 } : item ) });
+    } else {
+      set({ items: [...currentItems, { ...data, quantity: 1 }] });
+    }
+
+    // 2. Kirim ke Database
+    try {
+      await addToCartAction(data.id, 1);
+    } catch (error) {
+      await get().fetchCart(); // Jika gagal, kembalikan tampilan sesuai database
+    }
+  },
+
+  removeItem: async (id, size) => {
+    set({ items: get().items.filter((item) => item.id !== id) }); // Optimistic
+    try {
+      await removeFromCartAction(id); // Database
+    } catch (error) {
+      await get().fetchCart();
+    }
+  },
+
+  updateQuantity: async (id, size, quantity) => {
+    set({ items: get().items.map((item) => item.id === id ? { ...item, quantity } : item) }); // Optimistic
+    try {
+      await updateCartItemAction(id, quantity); // Database
+    } catch (error) {
+      await get().fetchCart();
+    }
+  },
+
+  clearCart: async () => {
+    set({ items: [] }); // Optimistic
+    await clearCartAction(); // Database
+  },
+}));
