@@ -13,9 +13,8 @@ const formatRupiah = (angka: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
 };
 
-// 🚀 HELPER FORMAT TANGGAL BARU
 const formatDate = (dateString: string | Date) => {
-  return new Intl.DateTimeFormat('en-US', { 
+  return new Intl.DateTimeFormat('en-US', {
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
   }).format(new Date(dateString));
 };
@@ -27,18 +26,19 @@ export default function AdminPromosPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // 🚀 TAMBAHAN STATE: startDate & endDate
   const [formData, setFormData] = useState({
     code: '',
     name: '',
     type: 'PERCENTAGE',
     value: 0,
-    minPurchase: 0,
     audience: 'ALL_USERS',
-    quotaTotal: 0, 
+    quotaTotal: 0,
     maxClaimsPerUser: 1,
     startDate: '',
     endDate: '',
+    // 🚀 STATE BARU
+    minPurchase: 0,
+    maxDiscount: '', // Gunakan string kosong agar bisa membedakan 0 dan "tidak ada batas"
   });
 
   const loadPromos = async () => {
@@ -71,18 +71,23 @@ export default function AdminPromosPage() {
     const res = await createPromoAction({
       ...formData,
       value: Number(formData.value),
-      minPurchase: Number(formData.minPurchase),
       quotaTotal: formData.quotaTotal > 0 ? Number(formData.quotaTotal) : null,
       maxClaimsPerUser: Number(formData.maxClaimsPerUser),
       startDate: formData.startDate || undefined,
       endDate: formData.endDate || undefined,
+      // 🚀 DATA BARU UNTUK SERVER
+      minPurchase: Number(formData.minPurchase),
+      maxDiscount: formData.maxDiscount !== '' ? Number(formData.maxDiscount) : null,
     });
 
     if (res?.error) {
       setError(res.error);
     } else {
       setIsModalOpen(false);
-      setFormData({ code: '', name: '', type: 'PERCENTAGE', value: 0, minPurchase: 0, audience: 'ALL_USERS', quotaTotal: 0, maxClaimsPerUser: 1, startDate: '', endDate: '' });
+      setFormData({
+        code: '', name: '', type: 'PERCENTAGE', value: 0, audience: 'ALL_USERS',
+        quotaTotal: 0, maxClaimsPerUser: 1, startDate: '', endDate: '', minPurchase: 0, maxDiscount: ''
+      });
       loadPromos();
     }
     setIsSubmitting(false);
@@ -126,7 +131,7 @@ export default function AdminPromosPage() {
             <thead className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-500 font-bold">
               <tr>
                 <th className="px-6 py-4">Promo Details</th>
-                <th className="px-6 py-4">Value</th>
+                <th className="px-6 py-4">Value & Conditions</th>
                 <th className="px-6 py-4">Audience</th>
                 <th className="px-6 py-4">Usage & Quota</th>
                 <th className="px-6 py-4">Status</th>
@@ -154,7 +159,6 @@ export default function AdminPromosPage() {
                     <td className="px-6 py-4">
                       <div className="font-bold text-black text-sm">{promo.code}</div>
                       <div className="text-[10px] text-gray-500">{promo.name}</div>
-                      {/* 🚀 TAMPILKAN TANGGAL KEDALUWARSA */}
                       <div className="text-[9px] text-orange-600 uppercase tracking-widest mt-1">
                         {promo.endDate ? `Exp: ${formatDate(promo.endDate)}` : 'No Expiry'}
                       </div>
@@ -164,8 +168,12 @@ export default function AdminPromosPage() {
                         {promo.type === 'PERCENTAGE' ? `${promo.value}% OFF` :
                           promo.type === 'NOMINAL' ? formatRupiah(promo.value) : 'FREE SHIPPING'}
                       </div>
-                      <div className="text-[9px] text-gray-400 uppercase tracking-widest mt-1">
-                        Min. {formatRupiah(promo.minPurchase)}
+                      {/* 🚀 TAMPILKAN KONDISI MIN PURCHASE & MAX DISCOUNT */}
+                      <div className="text-[9px] text-gray-400 uppercase tracking-widest mt-1 space-y-0.5">
+                        <p>Min. {formatRupiah(promo.minPurchase)}</p>
+                        {promo.maxDiscount && promo.type === 'PERCENTAGE' && (
+                          <p className="text-blue-500">Max. {formatRupiah(promo.maxDiscount)}</p>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -274,7 +282,33 @@ export default function AdminPromosPage() {
                 </div>
               </div>
 
-              {/* 🚀 TAMBAHAN: FIELD START DATE & END DATE */}
+              {/* 🚀 TAMBAHAN: FIELD MIN PURCHASE & MAX DISCOUNT */}
+              <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-6">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Min. Purchase (Rp)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 100000"
+                    value={formData.minPurchase || ''}
+                    onChange={(e) => setFormData({ ...formData, minPurchase: Number(e.target.value) })}
+                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors rounded-md"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                    Max Discount (Rp) {formData.type !== 'PERCENTAGE' && '- Disabled'}
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 50000 (Empty = Uncapped)"
+                    value={formData.maxDiscount}
+                    onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })}
+                    disabled={formData.type !== 'PERCENTAGE'}
+                    className="w-full h-10 px-3 text-sm border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black transition-colors rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-6">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Start Date (Optional)</label>

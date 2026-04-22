@@ -15,7 +15,6 @@ async function verifyAdmin() {
   }
 }
 
-// 1. GET ALL PROMOS
 export async function getPromosAction() {
   await verifyAdmin();
 
@@ -29,7 +28,6 @@ export async function getPromosAction() {
   });
 }
 
-// 2. CREATE PROMO
 export async function createPromoAction(data: any) {
   await verifyAdmin();
 
@@ -50,12 +48,15 @@ export async function createPromoAction(data: any) {
         code: cleanCode,
         type: data.type,
         value: data.value,
-        minPurchase: data.minPurchase,
         audience: data.audience,
         quotaTotal: data.quotaTotal || null,
         maxClaimsPerUser: data.maxClaimsPerUser || 1,
         startDate: data.startDate ? new Date(data.startDate) : new Date(),
         endDate: data.endDate ? new Date(data.endDate) : null,
+
+        // 🚀 TAMBAHAN: Kondisi Minimal Belanja & Maksimal Diskon
+        minPurchase: data.minPurchase ? Number(data.minPurchase) : 0,
+        maxDiscount: data.maxDiscount ? Number(data.maxDiscount) : null,
       }
     });
 
@@ -68,7 +69,6 @@ export async function createPromoAction(data: any) {
   }
 }
 
-// 3. TOGGLE STATUS
 export async function togglePromoStatusAction(id: string, isActive: boolean) {
   await verifyAdmin();
 
@@ -81,7 +81,6 @@ export async function togglePromoStatusAction(id: string, isActive: boolean) {
   return { success: true };
 }
 
-// 4. DELETE PROMO
 export async function deletePromoAction(id: string) {
   await verifyAdmin();
 
