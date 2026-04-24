@@ -1,0 +1,77 @@
+// app/api/xendit/create-invoice/route.ts
+import { NextResponse } from 'next/server';
+
+const XENDIT_SECRET_KEY = process.env.XENDIT_SECRET_KEY;
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { orderId, amount, customerName, customerEmail, items } = body;
+
+    // 1. Validasi Input
+    if (!orderId || !amount || !customerEmail) {
+      return NextResponse.json(
+        { success: false, error: "Missing required parameters (orderId, amount, customerEmail)" },
+        { status: 400 }
+      );
+    }
+
+    if (!XENDIT_SECRET_KEY) {
+      throw new Error("XENDIT_SECRET_KEY is missing in .env");
+    }
+
+    // 2. Format Xendit Authentication (Basic Auth menggunakan Base64)
+    // Format wajib Xendit: SecretKey diikuti dengan titik dua (:)
+    const token = Buffer.from(`${XENDIT_SECRET_KEY}:`).toString('base64');
+
+    // 3. Susun Payload (Data Tagihan)
+    const payload = {
+      external_id: orderId, // ID Pesanan dari database Prisma kita
+      amount: amount,
+      payer_email: customerEmail,
+      description: `Invoice for Order #${orderId}`,
+      customer: {
+        given_names: customerName || 'Customer',
+        email: customerEmail,
+      },
+      // (Opsional) Rincian barang agar tampil di halaman pembayaran Xendit
+      items: items?.map((item: any) => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      // Ke mana user diarahkan setelah bayar
+      success_redirect_url: `${BASE_URL}/account`,
+      failure_redirect_url: `${BASE_URL}/cart`,
+      currency: "IDR"
+    };
+
+    // 4. Kirim Request ke Server Xendit
+    const response = await fetch('https://api.xendit.co/v2/invoices', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to create Xendit invoice');
+    }
+
+    // 5. Kembalikan URL Pembayaran ke Frontend
+    return NextResponse.json({ 
+      success: true, 
+      invoiceUrl: data.invoice_url, // 🚀 Ini adalah Link UI Xendit
+      invoiceId: data.id 
+    });
+
+  } catch (error: any) {
+    console.error("Xendit API Error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
