@@ -1,76 +1,70 @@
 // lib/rajaongkir.ts
 
-const RAJAONGKIR_API_KEY = process.env.RAJAONGKIR_API_KEY;
+const KOMERCE_API_KEY = process.env.RAJAONGKIR_API_KEY;
+// URL Baru Komerce untuk layanan RajaOngkir
+const BASE_URL = 'https://rajaongkir.komerce.id/api/v1';
 
-// Catatan: Jika Anda menggunakan akun Starter, URL-nya adalah 'starter'. 
-// Jika Anda upgrade ke Basic/Pro, ganti kata 'starter' di bawah ini menjadi 'basic' atau 'pro'.
-const BASE_URL = 'https://api.rajaongkir.com/starter';
-
-// Helper untuk fetch agar lebih rapi
-async function fetchRajaOngkir(endpoint: string, options: RequestInit = {}) {
-  if (!RAJAONGKIR_API_KEY) throw new Error("RAJAONGKIR_API_KEY is not set in .env");
+async function fetchKomerce(endpoint: string, options: RequestInit = {}) {
+  if (!KOMERCE_API_KEY) throw new Error("RAJAONGKIR_API_KEY (Komerce) belum di-set di .env");
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
+    cache: 'no-store',
     headers: {
-      'key': RAJAONGKIR_API_KEY,
+      'key': KOMERCE_API_KEY,
       'Content-Type': 'application/x-www-form-urlencoded',
       ...options.headers,
     },
   });
 
   const data = await response.json();
-  if (data.rajaongkir.status.code !== 200) {
-    throw new Error(data.rajaongkir.status.description);
+  
+  // Format response Komerce menggunakan pembungkus "meta"
+  if (data.meta && data.meta.code !== 200) {
+    throw new Error(data.meta.message || "Terjadi kesalahan dari server Komerce");
   }
-  return data.rajaongkir;
+  
+  return data.data;
 }
 
-// 1. AMBIL DAFTAR PROVINSI
-export async function getProvinces() {
+// 1. CARI DESTINASI (Menggantikan sistem Provinsi & Kota)
+// Menggunakan parameter 'keyword' seperti "Bandung" atau "Kemayoran"
+export async function searchDestination(keyword: string) {
   try {
-    const data = await fetchRajaOngkir('/province');
-    return data.results;
+    const data = await fetchKomerce(`/destination/domestic-destination?search=${keyword}&limit=10`, {
+      method: 'GET'
+    });
+    return data; // Mengembalikan array lokasi lengkap (Provinsi, Kota, Kecamatan)
   } catch (error) {
-    console.error("Error fetching provinces:", error);
+    console.error("Komerce Search Location Error:", error);
     return [];
   }
 }
 
-// 2. AMBIL DAFTAR KOTA BERDASARKAN ID PROVINSI
-export async function getCities(provinceId: string) {
-  try {
-    const data = await fetchRajaOngkir(`/city?province=${provinceId}`);
-    return data.results;
-  } catch (error) {
-    console.error("Error fetching cities:", error);
-    return [];
-  }
-}
-
-// 3. HITUNG ONGKOS KIRIM
+// 2. HITUNG ONGKOS KIRIM
 export async function calculateShippingCost(
-  originCityId: string, 
-  destinationCityId: string, 
+  originId: string, 
+  destinationId: string, 
   weightInGrams: number, 
-  courier: 'jne' | 'pos' | 'tiki'
+  courier: string
 ) {
   try {
     const body = new URLSearchParams({
-      origin: originCityId,
-      destination: destinationCityId,
+      origin: originId,
+      destination: destinationId,
       weight: weightInGrams.toString(),
       courier: courier,
     });
 
-    const data = await fetchRajaOngkir('/cost', {
+    // Endpoint kalkulasi harga Komerce
+    const data = await fetchKomerce('/calculate/domestic-cost', {
       method: 'POST',
       body: body.toString(),
     });
 
-    return data.results[0]; // Mengembalikan array layanan dari kurir tersebut (misal: JNE OKE, JNE REG, dll)
+    return data; // Mengembalikan array layanan (REG, YES, dll)
   } catch (error) {
-    console.error("Error calculating cost:", error);
+    console.error("Komerce Calculate Cost Error:", error);
     return null;
   }
 }

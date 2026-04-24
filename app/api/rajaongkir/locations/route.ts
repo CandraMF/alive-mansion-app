@@ -1,22 +1,18 @@
 // app/api/rajaongkir/locations/route.ts
 import { NextResponse } from 'next/server';
-import { getProvinces, getCities } from '@/lib/rajaongkir';
+import { searchDestination } from '@/lib/rajaongkir';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const provinceId = searchParams.get('province');
+  const keyword = searchParams.get('keyword');
+
+  if (!keyword || keyword.length < 3) {
+    return NextResponse.json({ success: true, data: [] }); // Minimal 3 huruf untuk cari
+  }
 
   try {
-    // Jika ada parameter 'province', kembalikan daftar kota di provinsi tersebut
-    if (provinceId) {
-      const cities = await getCities(provinceId);
-      return NextResponse.json({ success: true, data: cities });
-    } 
-    
-    // Jika tidak ada parameter, kembalikan daftar semua provinsi
-    const provinces = await getProvinces();
-    return NextResponse.json({ success: true, data: provinces });
-
+    const locations = await searchDestination(keyword);
+    return NextResponse.json({ success: true, data: locations });
   } catch (error: any) {
     console.error("Location API Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
