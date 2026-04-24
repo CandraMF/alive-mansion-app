@@ -14,7 +14,7 @@ const formatRupiah = (angka: number) => {
 };
 
 const formatDate = (dateString: string | Date) => {
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('en-US', { 
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
   }).format(new Date(dateString));
 };
@@ -32,7 +32,7 @@ export default function AdminPromosPage() {
     type: 'PERCENTAGE',
     value: 0,
     audience: 'ALL_USERS',
-    quotaTotal: 0,
+    quotaTotal: 0, 
     maxClaimsPerUser: 1,
     startDate: '',
     endDate: '',
@@ -84,9 +84,9 @@ export default function AdminPromosPage() {
       setError(res.error);
     } else {
       setIsModalOpen(false);
-      setFormData({
-        code: '', name: '', type: 'PERCENTAGE', value: 0, audience: 'ALL_USERS',
-        quotaTotal: 0, maxClaimsPerUser: 1, startDate: '', endDate: '', minPurchase: 0, maxDiscount: ''
+      setFormData({ 
+        code: '', name: '', type: 'PERCENTAGE', value: 0, audience: 'ALL_USERS', 
+        quotaTotal: 0, maxClaimsPerUser: 1, startDate: '', endDate: '', minPurchase: 0, maxDiscount: '' 
       });
       loadPromos();
     }
