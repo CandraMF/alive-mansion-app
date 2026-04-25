@@ -60,6 +60,8 @@ model Product {
   variants Variant[]
   images   ProductImage[]
 
+  weight      Int      @default(500)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -430,4 +432,20 @@ model CartItem {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, variantId])
+}
+
+model StoreSetting {
+  id              String   @id @default("default") 
+  
+  storeName       String   @default("Alive Mansion")
+  whatsappNumber  String?  
+  
+  originCityId    String   @default("24") 
+  originCityName  String   @default("Bandung Barat")
+  activeCouriers  String   @default("jne,jnt,sicepat") 
+  
+  isMaintenance   Boolean  @default(false) 
+  taxRate         Float    @default(0) 
+  
+  updatedAt       DateTime @updatedAt
 }

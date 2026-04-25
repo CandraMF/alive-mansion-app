@@ -38,7 +38,8 @@ export async function getCartAction() {
     image: item.variant.product.images[0]?.url || '',
     size: item.variant.size.name,
     color: item.variant.color.name,
-    quantity: item.quantity
+    quantity: item.quantity,
+    weight: item.variant.product.weight || 500,
   }));
 }
 

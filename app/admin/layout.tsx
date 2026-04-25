@@ -87,6 +87,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         { name: 'Customers', path: '/admin/customers', icon: Users },
         { name: 'Fees', path: '/admin/fees', icon: DollarSign   },
         { name: 'Promo & Discounts', path: '/admin/promos', icon: ShoppingCart },
+        { name: 'Settings', path: '/admin/settings', icon: Settings }
       ]
     },
     {
@@ -98,12 +99,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         { name: 'Theme', path: '/admin/theme', icon: Palette },
       ]
     },
-    {
-      label: 'System',
-      items: [
-        { name: 'Settings', path: '/admin/settings', icon: Settings },
-      ]
-    }
   ];
 
   const getCurrentPageName = () => {
