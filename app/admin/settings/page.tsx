@@ -7,8 +7,8 @@ import {
 } from '@/app/actions/setting';
 import { 
   Settings, Store, Truck, ShieldAlert, 
-  Save, Loader2, Search, CheckCircle2, 
-  AlertCircle, Phone, MapPin 
+  Save, Loader2, CheckCircle2, 
+  AlertCircle, Phone, MapPin, ChevronRight, Search, ChevronDown, X
 } from 'lucide-react';
 
 export default function AdminSettingsPage() {
@@ -17,7 +17,7 @@ export default function AdminSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // State Pengaturan
+  // Settings State
   const [settings, setSettings] = useState({
     storeName: '',
     whatsappNumber: '',
@@ -27,13 +27,6 @@ export default function AdminSettingsPage() {
     isMaintenance: false,
     taxRate: 0,
   });
-
-  // State Pencarian Lokasi Gudang (Komerce V2)
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [destinations, setDestinations] = useState<any[]>([]);
-  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -48,50 +41,11 @@ export default function AdminSettingsPage() {
           isMaintenance: data.isMaintenance,
           taxRate: data.taxRate,
         });
-        setSearchKeyword(data.originCityName);
       }
       setIsLoading(false);
     };
     loadSettings();
-
-    // Close dropdown on click outside
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Handler Pencarian Lokasi Gudang
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (searchKeyword.length >= 3 && searchKeyword !== settings.originCityName) {
-        setIsSearchingLocation(true);
-        fetch(`/api/rajaongkir/locations?keyword=${searchKeyword}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.success) {
-              setDestinations(data.data);
-              setShowDropdown(true);
-            }
-          })
-          .finally(() => setIsSearchingLocation(false));
-      }
-    }, 500);
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchKeyword, settings.originCityName]);
-
-  const handleSelectOrigin = (dest: any) => {
-    setSettings({ 
-      ...settings, 
-      originCityId: String(dest.id), 
-      originCityName: `${dest.city_name} (${dest.subdistrict_name})` 
-    });
-    setSearchKeyword(`${dest.city_name} (${dest.subdistrict_name})`);
-    setShowDropdown(false);
-  };
 
   const handleCourierToggle = (courier: string) => {
     const currentList = settings.activeCouriers.split(',').filter(c => c !== '');
@@ -112,13 +66,210 @@ export default function AdminSettingsPage() {
 
     const res = await updateStoreSettingAction(settings);
     if (res.success) {
-      setMessage({ type: 'success', text: 'Pengaturan berhasil diperbarui!' });
+      setMessage({ type: 'success', text: 'Settings successfully updated!' });
     } else {
-      setMessage({ type: 'error', text: res.error || 'Gagal memperbarui pengaturan.' });
+      setMessage({ type: 'error', text: res.error || 'Failed to update settings.' });
     }
     setIsSaving(false);
   };
 
+  // ==========================================
+  // 🚀 CUSTOM COMPONENT: LOCATION PICKER
+  // ==========================================
+  const LocationPicker = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [step, setStep] = useState(0); // 0: Prov, 1: City, 2: Dist, 3: Subdist
+    const [options, setOptions] = useState<any[]>([]);
+    const [isFetching, setIsFetching] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selections, setSelections] = useState<any[]>([]);
+    
+    const pickerRef = useRef<HTMLDivElement>(null);
+
+    // Handle Click Outside to Close
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+          setIsOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const fetchOptions = async (currentStep: number, parentId: string | null = null) => {
+      setIsFetching(true);
+      let type = 'province';
+      if (currentStep === 1) type = 'city';
+      if (currentStep === 2) type = 'district';
+      if (currentStep === 3) type = 'subdistrict';
+
+      const url = parentId ? `/api/rajaongkir/hierarchy?type=${type}&id=${parentId}` : `/api/rajaongkir/hierarchy?type=${type}`;
+      
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        setOptions(data.success ? data.data : []);
+      } catch (err) {
+        console.error(err);
+        setOptions([]);
+      } finally {
+        setIsFetching(false);
+      }
+    };
+
+    const handleOpen = () => {
+      setIsOpen(true);
+      if (step === 0 && options.length === 0) {
+        fetchOptions(0);
+      }
+    };
+
+    const jumpToStep = (targetStep: number) => {
+      setStep(targetStep);
+      setSearchQuery('');
+      const parentId = targetStep === 0 ? null : selections[targetStep - 1].id;
+      fetchOptions(targetStep, parentId);
+    };
+
+    const handleSelect = (item: any) => {
+      const newSelections = [...selections.slice(0, step), item];
+      setSelections(newSelections);
+      setSearchQuery('');
+
+      if (step < 3) {
+        setStep(step + 1);
+        fetchOptions(step + 1, item.id);
+      } else {
+        // Final Step (Sub-district Selected)
+        const finalLocationName = `${newSelections[3].name}, ${newSelections[2].name}, ${newSelections[1].name}, ${newSelections[0].name}`;
+        setSettings(prev => ({
+          ...prev,
+          originCityId: String(item.id),
+          originCityName: finalLocationName
+        }));
+        setIsOpen(false);
+      }
+    };
+
+    const filteredOptions = options.filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return (
+      <div className="relative w-full" ref={pickerRef}>
+        {/* INPUT TRIGGER */}
+        <div 
+          onClick={handleOpen}
+          className="w-full min-h-[48px] px-4 py-3 border border-gray-200 bg-white text-sm cursor-pointer flex items-center justify-between hover:border-black transition-colors"
+        >
+          <div className="flex flex-col gap-1 pr-4">
+            {settings.originCityId ? (
+              <>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600">Saved Location</span>
+                <span className="text-gray-900 font-medium capitalize leading-tight">{settings.originCityName}</span>
+              </>
+            ) : (
+              <span className="text-gray-400">Select Province, City, District...</span>
+            )}
+          </div>
+          <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+        </div>
+
+        {/* POPOVER / MODAL DROPDOWN */}
+        {isOpen && (
+          <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 shadow-xl z-50 animate-in fade-in slide-in-from-top-2">
+            
+            {/* HEADER: BREADCRUMBS */}
+            <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+              <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                <button type="button" onClick={() => jumpToStep(0)} className={`hover:text-black transition-colors ${step === 0 ? "text-black" : ""}`}>Prov</button>
+                
+                {step > 0 && (
+                  <>
+                    <ChevronRight className="w-3 h-3" />
+                    <button type="button" onClick={() => jumpToStep(1)} className={`hover:text-black transition-colors truncate max-w-[80px] ${step === 1 ? "text-black" : ""}`}>
+                      {selections[0]?.name || 'City'}
+                    </button>
+                  </>
+                )}
+                
+                {step > 1 && (
+                  <>
+                    <ChevronRight className="w-3 h-3" />
+                    <button type="button" onClick={() => jumpToStep(2)} className={`hover:text-black transition-colors truncate max-w-[80px] ${step === 2 ? "text-black" : ""}`}>
+                      {selections[1]?.name || 'District'}
+                    </button>
+                  </>
+                )}
+
+                {step > 2 && (
+                  <>
+                    <ChevronRight className="w-3 h-3" />
+                    <span className={`truncate max-w-[80px] ${step === 3 ? "text-black" : ""}`}>
+                      Village
+                    </span>
+                  </>
+                )}
+              </div>
+              <button type="button" onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-black"><X className="w-4 h-4" /></button>
+            </div>
+
+            {/* SEARCH BAR */}
+            <div className="p-3 border-b border-gray-100">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder={`Search ${step === 0 ? 'province' : step === 1 ? 'city' : step === 2 ? 'district' : 'village'}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-9 pl-9 pr-4 bg-gray-50 border-transparent focus:bg-white focus:border-black outline-none text-xs transition-all"
+                />
+              </div>
+            </div>
+
+            {/* LIST OF OPTIONS */}
+            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+              {isFetching ? (
+                <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                  <Loader2 className="w-5 h-5 animate-spin mb-2" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Loading...</span>
+                </div>
+              ) : filteredOptions.length === 0 ? (
+                <div className="text-center py-8 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  No results found
+                </div>
+              ) : (
+                <ul className="flex flex-col">
+                  {filteredOptions.map((opt) => (
+                    <li 
+                      key={opt.id}
+                      onClick={() => handleSelect(opt)}
+                      className="px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 cursor-pointer flex justify-between items-center group transition-colors"
+                    >
+                      <span className="text-xs font-medium text-gray-700 group-hover:text-black uppercase">{opt.name}</span>
+                      <ChevronRight className="w-4 h-4 text-gray-200 group-hover:text-black opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            
+            {/* FOOTER INFO */}
+            <div className="p-2 bg-gray-50 border-t border-gray-100 text-center">
+               <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">
+                 Step {step + 1} of 4
+               </span>
+            </div>
+
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ==========================================
+  // MAIN RENDER
+  // ==========================================
   if (isLoading) {
     return (
       <div className="p-10 flex flex-col items-center justify-center min-h-[400px]">
@@ -135,7 +286,7 @@ export default function AdminSettingsPage() {
           <Settings className="w-8 h-8" /> Store Settings
         </h1>
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mt-2">
-          Pusat Kendali Operasional & Logistik Alive Mansion
+          Alive Mansion Operations & Logistics Control Center
         </p>
       </header>
 
@@ -149,21 +300,23 @@ export default function AdminSettingsPage() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        {/* Sidebar Navigasi Tab */}
         <aside className="space-y-1">
           <button 
+            type="button"
             onClick={() => setActiveTab('identity')}
             className={`w-full flex items-center gap-3 px-4 py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'identity' ? 'bg-black text-white' : 'hover:bg-gray-100 text-gray-500'}`}
           >
             <Store className="w-4 h-4" /> Store Identity
           </button>
           <button 
+            type="button"
             onClick={() => setActiveTab('logistics')}
             className={`w-full flex items-center gap-3 px-4 py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'logistics' ? 'bg-black text-white' : 'hover:bg-gray-100 text-gray-500'}`}
           >
             <Truck className="w-4 h-4" /> Logistics & Courier
           </button>
           <button 
+            type="button"
             onClick={() => setActiveTab('system')}
             className={`w-full flex items-center gap-3 px-4 py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'system' ? 'bg-black text-white' : 'hover:bg-gray-100 text-gray-500'}`}
           >
@@ -171,11 +324,10 @@ export default function AdminSettingsPage() {
           </button>
         </aside>
 
-        {/* Panel Form Utama */}
         <main className="md:col-span-3 bg-white border border-gray-100 p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-8">
             
-            {/* TAB 1: IDENTITAS */}
+            {/* TAB 1: IDENTITY */}
             {activeTab === 'identity' && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="space-y-2">
@@ -202,52 +354,32 @@ export default function AdminSettingsPage() {
                       className="w-full h-12 pl-12 pr-4 bg-gray-50 border-transparent focus:bg-white focus:border-black outline-none text-sm transition-all"
                     />
                   </div>
-                  <p className="text-[9px] text-gray-400 italic">Gunakan format internasional tanpa tanda + (contoh: 628123456789)</p>
+                  <p className="text-[9px] text-gray-400 italic">Use international format without + sign (e.g., 628123456789)</p>
                 </div>
               </div>
             )}
 
-            {/* TAB 2: LOGISTIK */}
+            {/* TAB 2: LOGISTICS */}
             {activeTab === 'logistics' && (
               <div className="space-y-8 animate-in fade-in duration-500">
-                {/* Penentuan Lokasi Gudang */}
-                <div className="space-y-2 relative" ref={searchRef}>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Origin Warehouse (City/District)</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
-                    <input 
-                      type="text" 
-                      value={searchKeyword}
-                      onChange={e => setSearchKeyword(e.target.value)}
-                      placeholder="Search city for warehouse location..."
-                      className="w-full h-12 pl-12 pr-4 bg-gray-50 border-transparent focus:bg-white focus:border-black outline-none text-sm transition-all"
-                    />
-                    {isSearchingLocation && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-300" />}
+                
+                <div className="space-y-4 bg-gray-50/50 p-6 border border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2">
+                      <MapPin className="w-4 h-4" /> Origin Warehouse Location
+                    </label>
                   </div>
                   
-                  {showDropdown && destinations.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 shadow-xl max-h-48 overflow-y-auto">
-                      {destinations.map((dest) => (
-                        <button 
-                          key={dest.id} 
-                          type="button"
-                          onClick={() => handleSelectOrigin(dest)}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0"
-                        >
-                          <p className="text-[11px] font-bold uppercase">{dest.city_name} ({dest.subdistrict_name})</p>
-                          <p className="text-[9px] text-gray-500 uppercase mt-0.5">{dest.province_name}</p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-[9px] text-gray-400 italic">ID Lokasi Terpilih: {settings.originCityId || 'None'}</p>
+                  {/* 🚀 THE NEW AWESOME LOCATION PICKER */}
+                  <LocationPicker />
+                  
+                  <p className="text-[9px] text-gray-400 italic mt-2">Selected Komerce ID: <span className="font-bold text-black">{settings.originCityId || 'Not Set'}</span></p>
                 </div>
 
-                {/* Pemilihan Kurir Aktif */}
                 <div className="space-y-4">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Active Couriers</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {['jne', 'jnt', 'sicepat', 'pos', 'tiki', 'anteraja'].map(courier => (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {['jne', 'sicepat', 'ide', 'sap', 'jnt', 'ninja', 'tiki', 'lion', 'anteraja', 'pos', 'ncs', 'rex', 'rpx', 'sentral', 'star', 'wahana', 'dse'].map(courier => (
                       <button
                         key={courier}
                         type="button"
@@ -267,13 +399,13 @@ export default function AdminSettingsPage() {
               </div>
             )}
 
-            {/* TAB 3: SISTEM */}
+            {/* TAB 3: SYSTEM */}
             {activeTab === 'system' && (
               <div className="space-y-8 animate-in fade-in duration-500">
                 <div className="flex items-center justify-between p-6 bg-red-50 border border-red-100">
                   <div>
                     <h3 className="text-[10px] font-bold uppercase tracking-widest text-red-800">Maintenance Mode</h3>
-                    <p className="text-[9px] text-red-600 mt-1 uppercase tracking-tight">Menonaktifkan akses Checkout untuk pelanggan sementara waktu.</p>
+                    <p className="text-[9px] text-red-600 mt-1 uppercase tracking-tight">Disables Checkout access for customers temporarily.</p>
                   </div>
                   <button
                     type="button"

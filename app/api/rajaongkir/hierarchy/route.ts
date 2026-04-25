@@ -1,41 +1,37 @@
 import { NextResponse } from 'next/server';
 
-// Pastikan API Key Komerce Anda sudah terpasang di file .env
 const API_KEY = process.env.RAJAONGKIR_API_KEY || process.env.KOMERCE_API_KEY || '';
 const BASE_URL = 'https://rajaongkir.komerce.id/api/v1';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
-  const id = searchParams.get('id'); // Ini bisa ID Provinsi, ID Kota, atau ID Kecamatan
+  const id = searchParams.get('id');
 
   if (!API_KEY) {
-    return NextResponse.json({ success: false, message: "API Key logistik belum diatur di server." }, { status: 500 });
+    return NextResponse.json({ success: false, message: "Logistics API Key not found." }, { status: 500 });
   }
 
   let endpoint = '';
 
-  // Menentukan Endpoint Komerce berdasarkan hirarki yang diminta
   switch (type) {
     case 'province':
-      endpoint = '/destination/domestic-province';
+      endpoint = '/destination/province';
       break;
     case 'city':
-      if (!id) return NextResponse.json({ success: false, message: "ID Provinsi dibutuhkan" }, { status: 400 });
-      endpoint = `/destination/domestic-city?province=${id}`;
+      if (!id) return NextResponse.json({ success: false, message: "Province ID is required" }, { status: 400 });
+      endpoint = `/destination/city/${id}`;
       break;
     case 'district':
-      if (!id) return NextResponse.json({ success: false, message: "ID Kota dibutuhkan" }, { status: 400 });
-      // Catatan: Di RajaOngkir, 'subdistrict' adalah sebutan untuk Kecamatan (District)
-      endpoint = `/destination/domestic-subdistrict?city=${id}`; 
+      if (!id) return NextResponse.json({ success: false, message: "City ID is required" }, { status: 400 });
+      endpoint = `/destination/district/${id}`;
       break;
     case 'subdistrict':
-      if (!id) return NextResponse.json({ success: false, message: "ID Kecamatan dibutuhkan" }, { status: 400 });
-      // Endpoint kelurahan/desa/destination Komerce
-      endpoint = `/destination/domestic-destination?subdistrict=${id}`; 
+      if (!id) return NextResponse.json({ success: false, message: "District ID is required" }, { status: 400 });
+      endpoint = `/destination/sub-district/${id}`;
       break;
     default:
-      return NextResponse.json({ success: false, message: "Tipe hirarki tidak valid" }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Invalid hierarchy type" }, { status: 400 });
   }
 
   try {
@@ -47,42 +43,32 @@ export async function GET(request: Request) {
       }
     });
 
-    const data = await response.json();
+    const rawText = await response.text();
 
-    if (!data || !data.data) {
-      throw new Error("Format respons API Logistik tidak valid.");
+    if (!response.ok) {
+      console.error(`[Komerce API Error] Status: ${response.status}, Endpoint: ${endpoint}`);
+      return NextResponse.json({ success: false, message: `API Error: ${response.status}` }, { status: response.status });
     }
 
-    let formattedData = [];
-
-    // Komerce mengembalikan properti yang berbeda-beda untuk tiap level.
-    // Kita standarisasi menjadi format { id, name } agar mudah dibaca oleh frontend kita (AddressSection.tsx)
-    if (type === 'province') {
-      formattedData = data.data.map((item: any) => ({ 
-        id: item.province_id, 
-        name: item.province 
-      }));
-    } else if (type === 'city') {
-      formattedData = data.data.map((item: any) => ({ 
-        id: item.city_id, 
-        name: `${item.type} ${item.city_name}` // Gabungkan "Kota" atau "Kabupaten" dengan namanya
-      }));
-    } else if (type === 'district') {
-      formattedData = data.data.map((item: any) => ({ 
-        id: item.subdistrict_id, 
-        name: item.subdistrict_name 
-      }));
-    } else if (type === 'subdistrict') {
-      formattedData = data.data.map((item: any) => ({ 
-        id: item.id || item.destination_id, 
-        name: item.name || item.destination_name || "Desa/Kelurahan" 
-      }));
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (err) {
+      return NextResponse.json({ success: false, message: "Invalid API response." }, { status: 500 });
     }
+
+    const results = data.data || [];
+    
+    // 🚀 ROBUST MAPPER: Safely captures both modern (id/name) and legacy (province_id/province) formats
+    const formattedData = results.map((item: any) => ({ 
+      id: String(item.id || item.province_id || item.city_id || item.subdistrict_id || ''), 
+      name: item.name || item.province || item.city_name || item.subdistrict_name || 'Unknown Location'
+    }));
 
     return NextResponse.json({ success: true, data: formattedData }, { status: 200 });
 
   } catch (error: any) {
-    console.error("RAJAONGKIR/KOMERCE HIERARCHY ERROR:", error);
-    return NextResponse.json({ success: false, message: error.message || "Gagal menghubungi server logistik." }, { status: 500 });
+    console.error("RAJAONGKIR HIERARCHY FETCH ERROR:", error);
+    return NextResponse.json({ success: false, message: "Failed to connect to logistics server." }, { status: 500 });
   }
 }
