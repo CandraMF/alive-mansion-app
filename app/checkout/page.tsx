@@ -4,8 +4,15 @@ import { useCart } from '@/hooks/useCart';
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Loader2, MapPin, Truck, FileText, Search, Ticket, CheckCircle2, AlertCircle } from 'lucide-react';
+import { 
+  Loader2, MapPin, Truck, Search, 
+  Ticket, CheckCircle2, AlertCircle, X, Plus, Home
+} from 'lucide-react';
+
+// Import Server Actions
 import { getCheckoutDataAction } from '@/app/actions/checkout';
+import { claimVoucherAction } from '@/app/actions/voucher';
+import { getAddressesAction, addAddressAction, editAddressAction } from '@/app/actions/address';
 
 const formatRupiah = (angka: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
@@ -17,53 +24,116 @@ export default function CheckoutPage() {
   const [isMounted, setIsMounted] = useState(false);
 
   // ==========================================
-  // STATE DATA CHECKOUT (API)
+  // STATE DATA DARI DATABASE
   // ==========================================
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [availableVouchers, setAvailableVouchers] = useState<any[]>([]);
   const [storeFees, setStoreFees] = useState<any[]>([]);
-  const [isCheckoutDataLoading, setIsCheckoutDataLoading] = useState(true);
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // ==========================================
-  // STATE FORM & PENGIRIMAN
+  // STATE ALAMAT & PENGIRIMAN
   // ==========================================
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', street: '', postalCode: '', notes: '' });
-  
+  const [selectedAddress, setSelectedAddress] = useState<any>(null);
+  const [shippingOptions, setShippingOptions] = useState<any[]>([]);
+  const [selectedShipping, setSelectedShipping] = useState<any>(null);
+  const [isLoadingShipping, setIsLoadingShipping] = useState(false);
+
+  // ==========================================
+  // STATE MODAL MANAJEMEN ALAMAT
+  // ==========================================
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [isAddAddressMode, setIsAddAddressMode] = useState(false);
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+
+  // State Form Alamat Baru/Edit
+  const [newAddress, setNewAddress] = useState({ recipientName: '', phone: '', street: '', postalCode: '', isDefault: false });
   const [searchKeyword, setSearchKeyword] = useState('');
   const [destinations, setDestinations] = useState<any[]>([]);
   const [selectedDestination, setSelectedDestination] = useState<any>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  
-  const [shippingOptions, setShippingOptions] = useState<any[]>([]);
-  const [selectedShipping, setSelectedShipping] = useState<any>(null);
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
-  // 🚀 STATE VOUCHER
+  // ==========================================
+  // STATE VOUCHER
+  // ==========================================
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
   const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
+  const [claimCode, setClaimCode] = useState('');
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [claimMessage, setClaimMessage] = useState<{type: 'error'|'success', text: string} | null>(null);
 
-  const [isSearching, setIsSearching] = useState(false);
-  const [isLoadingShipping, setIsLoadingShipping] = useState(false);
   const [isProcessingPay, setIsProcessingPay] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
+
+  // ==========================================
+  // 🚀 UX MAGIC: HANDLE MOBILE BACK BUTTON
+  // ==========================================
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (isAddressModalOpen) {
+        setIsAddressModalOpen(false);
+        setIsAddAddressMode(false);
+        setEditingAddressId(null);
+      }
+      if (isVoucherModalOpen) {
+        setIsVoucherModalOpen(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAddressModalOpen, isVoucherModalOpen]);
+
+  const openAddressModal = () => {
+    window.history.pushState({ modal: 'address' }, '');
+    setIsAddressModalOpen(true);
+  };
+  const closeAddressModal = () => {
+    setIsAddressModalOpen(false);
+    setIsAddAddressMode(false);
+    setEditingAddressId(null);
+    if (window.history.state?.modal) window.history.back();
+  };
+  const openVoucherModal = () => {
+    window.history.pushState({ modal: 'voucher' }, '');
+    setIsVoucherModalOpen(true);
+  };
+  const closeVoucherModal = () => {
+    setIsVoucherModalOpen(false);
+    if (window.history.state?.modal) window.history.back();
+  };
 
   // ==========================================
   // INITIAL LOAD
   // ==========================================
   useEffect(() => {
     setIsMounted(true);
-    
-    // Ambil Data Fees & Vouchers dari Database
-    const fetchCheckoutData = async () => {
+    const fetchInitialData = async () => {
       try {
-        const data = await getCheckoutDataAction();
-        setStoreFees(data.fees);
-        setAvailableVouchers(data.vouchers);
-      } catch (error) {
-        console.error("Gagal load checkout data", error);
+        const [checkoutData, addresses] = await Promise.all([
+          getCheckoutDataAction(),
+          getAddressesAction()
+        ]);
+        
+        setStoreFees(checkoutData.fees);
+        setAvailableVouchers(checkoutData.vouchers);
+        setSavedAddresses(addresses);
+        setUserProfile(checkoutData.user);
+
+        // AUTO-DETECT ALAMAT DEFAULT
+        if (addresses.length > 0) {
+          const defaultAddr = addresses.find((a: any) => a.isDefault) || addresses[0];
+          handleSelectAddressForCheckout(defaultAddr);
+        }
+      } catch (err) {
+        console.error("Gagal memuat data", err);
       } finally {
-        setIsCheckoutDataLoading(false);
+        setIsInitialLoading(false);
       }
     };
-    fetchCheckoutData();
+    fetchInitialData();
 
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) setShowDropdown(false);
@@ -73,33 +143,15 @@ export default function CheckoutPage() {
   }, []);
 
   // ==========================================
-  // LOGIKA PENCARIAN & ONGKIR (KOMERCE)
+  // LOGIKA SHIPPING & RAJAONGKIR
   // ==========================================
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (searchKeyword.length >= 3 && !selectedDestination) handleSearchLocation(searchKeyword);
-    }, 500);
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchKeyword]);
-
-  const handleSearchLocation = async (keyword: string) => {
-    setIsSearching(true);
-    try {
-      const res = await fetch(`/api/rajaongkir/locations?keyword=${keyword}`);
-      const data = await res.json();
-      if (data.success) { setDestinations(data.data); setShowDropdown(true); }
-    } catch (error) { console.error("Error search", error); } 
-    finally { setIsSearching(false); }
+  const handleSelectAddressForCheckout = (addr: any) => {
+    setSelectedAddress(addr);
+    closeAddressModal(); // Gunakan helper pembunuh modal
+    handleCalculateShipping(addr.cityId);
   };
 
-  const handleSelectDestination = (dest: any) => {
-    setSelectedDestination(dest);
-    setSearchKeyword(`${dest.subdistrict_name}, ${dest.city_name}, ${dest.province_name}`);
-    setShowDropdown(false);
-    handleCalculateShipping(dest.id);
-  };
-
-  const handleCalculateShipping = async (destinationId: string) => {
+  const handleCalculateShipping = async (destinationCityId: string) => {
     setIsLoadingShipping(true);
     setShippingOptions([]);
     setSelectedShipping(null);
@@ -108,150 +160,244 @@ export default function CheckoutPage() {
       const res = await fetch('/api/rajaongkir/cost', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ originCityId: '152', destinationCityId: destinationId, weightInGrams: totalWeight, courier: 'jne' })
+        body: JSON.stringify({ originCityId: '152', destinationCityId: destinationCityId, weightInGrams: totalWeight, courier: 'jne' })
       });
       const data = await res.json();
       if (data.success) setShippingOptions(data.data);
-    } catch (error) { console.error("Error calc", error); } 
+    } catch (error) { console.error("Error shipping cost", error); } 
     finally { setIsLoadingShipping(false); }
   };
 
   // ==========================================
-  // 🚀 KALKULASI TOTAL (Subtotal + Ongkir + Fee - Diskon)
+  // LOGIKA MANAJEMEN ALAMAT (KOMERCE V2 & PRISMA)
+  // ==========================================
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchKeyword.length >= 3 && !selectedDestination) {
+        setIsSearchingLocation(true);
+        fetch(`/api/rajaongkir/locations?keyword=${searchKeyword}`)
+          .then(res => res.json())
+          .then(data => { if (data.success) { setDestinations(data.data); setShowDropdown(true); } })
+          .finally(() => setIsSearchingLocation(false));
+      }
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchKeyword]);
+
+  const handleSelectDestination = (dest: any) => {
+    setSelectedDestination(dest);
+    setSearchKeyword(`${dest.subdistrict_name}, ${dest.city_name}, ${dest.province_name}`);
+    setShowDropdown(false);
+  };
+
+  const handleEditAddress = (addr: any) => {
+    setEditingAddressId(addr.id);
+    setNewAddress({
+      recipientName: addr.recipientName,
+      phone: addr.phone,
+      street: addr.street,
+      postalCode: addr.postalCode,
+      isDefault: addr.isDefault
+    });
+    // Mock destinasi agar submitNewAddress tidak tertahan validasi
+    setSelectedDestination({
+      id: addr.cityId,
+      city_name: addr.cityName,
+      province_id: addr.provinceId,
+      province_name: addr.provinceName
+    });
+    setSearchKeyword(`${addr.cityName}, ${addr.provinceName}`);
+    setIsAddAddressMode(true);
+  };
+
+  const submitNewAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDestination) return alert("Pilih kecamatan/kota dari dropdown pencarian!");
+    
+    setIsSavingAddress(true);
+    const addressData = {
+      recipientName: newAddress.recipientName,
+      phone: newAddress.phone,
+      street: newAddress.street,
+      cityId: String(selectedDestination.id), // 🔥 FIX: Prisma Int vs String Error
+      cityName: selectedDestination.city_name,
+      provinceId: String(selectedDestination.province_id || "0"),
+      provinceName: selectedDestination.province_name,
+      postalCode: newAddress.postalCode,
+      isDefault: newAddress.isDefault || savedAddresses.length === 0
+    };
+
+    let res;
+    if (editingAddressId) {
+      res = await editAddressAction(editingAddressId, addressData);
+    } else {
+      res = await addAddressAction(addressData);
+    }
+
+    if (res.success && res.address) {
+      const updatedAddresses = await getAddressesAction();
+      setSavedAddresses(updatedAddresses);
+      
+      setNewAddress({ recipientName: '', phone: '', street: '', postalCode: '', isDefault: false });
+      setSearchKeyword('');
+      setSelectedDestination(null);
+      setEditingAddressId(null);
+      
+      handleSelectAddressForCheckout(res.address);
+    } else {
+      alert(res.error || "Gagal menyimpan alamat");
+    }
+    setIsSavingAddress(false);
+  };
+
+  // ==========================================
+  // LOGIKA HYBRID VOUCHER (AUTO-APPLY)
+  // ==========================================
+  const handleApplyPromoCode = async () => {
+    if (!claimCode) return;
+    setIsClaiming(true);
+    setClaimMessage(null);
+
+    const cleanCode = claimCode.toUpperCase().replace(/\s+/g, '');
+    const subtotal = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+
+    const inWallet = availableVouchers.find(v => v.promo.code === cleanCode);
+    if (inWallet) {
+      if (subtotal >= inWallet.promo.minPurchase) {
+        setSelectedVoucher(inWallet);
+        setClaimMessage({ type: 'success', text: 'Voucher applied!' });
+        setClaimCode('');
+      } else {
+        setClaimMessage({ type: 'error', text: `Min. spend ${formatRupiah(inWallet.promo.minPurchase)} required.` });
+      }
+      setIsClaiming(false);
+      return;
+    }
+
+    const res = await claimVoucherAction(cleanCode);
+    if (res.error) {
+      setClaimMessage({ type: 'error', text: res.error });
+    } else {
+      const data = await getCheckoutDataAction();
+      setAvailableVouchers(data.vouchers);
+      const newlyClaimed = data.vouchers.find((v: any) => v.promo.code === cleanCode);
+      if (newlyClaimed && subtotal >= newlyClaimed.promo.minPurchase) {
+        setSelectedVoucher(newlyClaimed);
+        setClaimMessage({ type: 'success', text: 'Voucher claimed & applied!' });
+      } else {
+        setClaimMessage({ type: 'success', text: 'Voucher saved to wallet.' });
+      }
+      setClaimCode('');
+    }
+    setIsClaiming(false);
+  };
+
+  // ==========================================
+  // 🚀 PERHITUNGAN FINAL
   // ==========================================
   if (!isMounted) return null;
 
   const subtotal = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
   const shippingCost = selectedShipping ? selectedShipping.cost : 0;
 
-  // Hitung Fees (Biaya Layanan Admin)
-  const calculatedFees = storeFees.map(fee => {
-    const amount = fee.isPercentage ? (subtotal * (fee.amount / 100)) : fee.amount;
-    return { ...fee, calculatedAmount: amount };
-  });
+  const calculatedFees = storeFees.map(fee => ({
+    ...fee,
+    calculatedAmount: fee.isPercentage ? (subtotal * (fee.amount / 100)) : fee.amount
+  }));
   const totalFeesAmount = calculatedFees.reduce((acc, curr) => acc + curr.calculatedAmount, 0);
 
-  // Hitung Diskon Voucher
   let discountAmount = 0;
+  let isShippingDiscount = false;
+
   if (selectedVoucher) {
     const promo = selectedVoucher.promo;
     if (subtotal >= promo.minPurchase) {
       if (promo.type === 'PERCENTAGE') {
         let calc = subtotal * (promo.value / 100);
-        discountAmount = (promo.maxDiscount && calc > promo.maxDiscount) ? promo.maxDiscount : calc;
+        discountAmount = promo.maxDiscount ? Math.min(calc, promo.maxDiscount) : calc;
       } else if (promo.type === 'NOMINAL') {
-        discountAmount = promo.value;
+        discountAmount = Math.min(promo.value, subtotal);
       } else if (promo.type === 'SHIPPING') {
-        let calc = shippingCost; // Gratis Ongkir
-        discountAmount = (promo.maxDiscount && calc > promo.maxDiscount) ? promo.maxDiscount : calc;
+        isShippingDiscount = true;
+        discountAmount = Math.min(promo.maxDiscount || promo.value, shippingCost);
       }
     } else {
-      // Jika syarat minPurchase tidak terpenuhi (karena user menghapus item di keranjang)
-      setSelectedVoucher(null); 
+      setSelectedVoucher(null);
     }
   }
 
-  // Jaring Pengaman: Total tidak boleh minus
-  let totalAmount = (subtotal + shippingCost + totalFeesAmount) - discountAmount;
-  if (totalAmount < 0) totalAmount = 0;
+  const totalAmount = Math.max(0, (subtotal + shippingCost + totalFeesAmount) - discountAmount);
 
   // ==========================================
-  // SUBMIT PAYMENT
+  // SUBMIT PEMBAYARAN FINAL
   // ==========================================
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedShipping) return alert("Please select a shipping method.");
-    setIsProcessingPay(true);
+    if (!selectedAddress) return alert("Pilih alamat pengiriman terlebih dahulu!");
+    if (!selectedShipping) return alert("Pilih metode pengiriman terlebih dahulu!");
     
-    // TAHAP SELANJUTNYA: DATABASE & XENDIT
-    console.log("READY UNTUK XENDIT:", {
-      formData, selectedDestination, selectedShipping, calculatedFees, selectedVoucher, 
-      subtotal, shippingCost, totalFeesAmount, discountAmount, totalAmount
-    });
+    setIsProcessingPay(true);
+    console.log("Ready to pay:", { totalAmount, selectedAddress, selectedShipping });
+    // TODO: Kirim ke Database & Xendit
   };
 
+  if (isInitialLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-gray-300" /></div>;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 pt-32 pb-24 font-sans text-black relative">
+    <div className="min-h-screen bg-gray-50 pt-32 pb-24 font-sans text-black">
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         <h1 className="text-3xl font-bold uppercase tracking-tighter mb-12">Checkout</h1>
 
         <form onSubmit={handlePayment} className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
           
           {/* KOLOM KIRI */}
-          <div className="lg:col-span-7 space-y-12">
+          <div className="lg:col-span-7 space-y-8">
             
-            {/* 1. Contact Information */}
-            <section className="bg-white p-8 border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-8">
-                <FileText className="w-5 h-5" />
-                <h2 className="text-xs font-bold uppercase tracking-[0.2em]">Contact Information</h2>
+            {/* 1. KARTU ALAMAT PENGIRIMAN */}
+            <section className="bg-white p-8 border border-gray-100 shadow-sm relative overflow-hidden">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-black" />
+                  <h2 className="text-xs font-bold uppercase tracking-[0.2em]">Delivery Address</h2>
+                </div>
+                {savedAddresses.length > 0 && (
+                  <button type="button" onClick={openAddressModal} className="text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-black transition-colors border border-gray-200 px-3 py-1.5">
+                    Change Address
+                  </button>
+                )}
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Full Name</label>
-                  <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border-transparent focus:bg-white focus:border-black outline-none text-sm transition-all" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Email Address</label>
-                  <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border-transparent focus:bg-white focus:border-black outline-none text-sm transition-all" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Phone Number</label>
-                  <input type="tel" required value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border-transparent focus:bg-white focus:border-black outline-none text-sm transition-all" />
-                </div>
-              </div>
-            </section>
 
-            {/* 2. Shipping Destination */}
-            <section className="bg-white p-8 border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-8">
-                <MapPin className="w-5 h-5" />
-                <h2 className="text-xs font-bold uppercase tracking-[0.2em]">Delivery Destination</h2>
-              </div>
-              
-              <div className="space-y-6">
-                <div className="relative" ref={searchRef}>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 block">Search District or City</label>
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input 
-                      type="text" 
-                      placeholder="Type at least 3 characters (e.g. 'Kebayoran')" 
-                      value={searchKeyword}
-                      onChange={(e) => {
-                        setSearchKeyword(e.target.value);
-                        if (selectedDestination) setSelectedDestination(null);
-                      }}
-                      className="w-full h-12 pl-12 pr-4 bg-gray-50 border-transparent focus:bg-white focus:border-black outline-none text-sm transition-all"
-                    />
-                    {isSearching && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />}
+              {!selectedAddress ? (
+                <div className="text-center py-10 bg-gray-50 border border-dashed border-gray-200">
+                  <Home className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-4 font-bold">No address selected</p>
+                  <button 
+                    type="button" 
+                    onClick={() => { setIsAddAddressMode(true); openAddressModal(); }}
+                    className="bg-black text-white px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-colors"
+                  >
+                    Add New Address
+                  </button>
+                </div>
+              ) : (
+                <div className="p-5 border border-black bg-gray-50/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-bold uppercase">{selectedAddress.recipientName}</span>
+                    {selectedAddress.isDefault && <span className="bg-black text-white text-[8px] uppercase tracking-widest px-2 py-0.5 ml-2">Default</span>}
                   </div>
-
-                  {/* Dropdown Komerce */}
-                  {showDropdown && destinations.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-100 shadow-xl max-h-60 overflow-y-auto">
-                      {destinations.map((dest) => (
-                        <button 
-                          key={dest.id} type="button" onClick={() => handleSelectDestination(dest)}
-                          className="w-full text-left px-6 py-4 hover:bg-gray-50 border-b border-gray-50 last:border-0"
-                        >
-                          <p className="text-[11px] font-bold uppercase tracking-tight">{dest.subdistrict_name}, {dest.city_name}</p>
-                          <p className="text-[9px] text-gray-500 uppercase tracking-widest mt-1">{dest.province_name} - {dest.zip_code}</p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <p className="text-[11px] text-gray-600 mb-2">{selectedAddress.phone}</p>
+                  <p className="text-[11px] text-gray-500 leading-relaxed">
+                    {selectedAddress.street}<br/>
+                    {selectedAddress.cityName}, {selectedAddress.provinceName} {selectedAddress.postalCode}
+                  </p>
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Street Address & Details</label>
-                  <textarea required rows={3} value={formData.street} onChange={e => setFormData({...formData, street: e.target.value})} className="w-full p-4 bg-gray-50 border-transparent focus:bg-white focus:border-black outline-none text-sm transition-all resize-none" placeholder="Jl. Sudirman No. 1, Apartment X..." />
-                </div>
-              </div>
+              )}
             </section>
 
-            {/* 3. Shipping Method */}
-            {selectedDestination && (
+            {/* 2. METODE PENGIRIMAN */}
+            {selectedAddress && (
               <section className="animate-in fade-in bg-white p-8 border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-3 mb-8">
                   <Truck className="w-5 h-5" />
@@ -260,6 +406,8 @@ export default function CheckoutPage() {
 
                 {isLoadingShipping ? (
                   <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-200" /></div>
+                ) : shippingOptions.length === 0 ? (
+                   <p className="text-[10px] text-center text-gray-400 uppercase tracking-widest py-8">No couriers available for this destination.</p>
                 ) : (
                   <div className="grid grid-cols-1 gap-3">
                     {shippingOptions.map((opt, idx) => (
@@ -271,7 +419,7 @@ export default function CheckoutPage() {
                           </div>
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-[0.2em]">JNE {opt.service || opt.name || 'REG'}</p>
-                            <p className="text-[9px] text-gray-400 uppercase mt-1">Estimation: {opt.etd || '-'} Days</p>
+                            <p className="text-[9px] text-gray-400 uppercase mt-1">Est. {opt.etd || '-'} Days</p>
                           </div>
                         </div>
                         <p className="text-sm font-bold">{formatRupiah(opt.cost)}</p>
@@ -281,15 +429,13 @@ export default function CheckoutPage() {
                 )}
               </section>
             )}
-
           </div>
 
-          {/* KOLOM KANAN: SUMMARY */}
+          {/* KOLOM KANAN: SUMMARY & VOUCHER */}
           <div className="lg:col-span-5">
             <div className="bg-white border border-gray-100 p-10 sticky top-32 shadow-sm">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] mb-8 border-b border-gray-50 pb-6">Order Summary</h2>
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] mb-10 border-b border-gray-50 pb-6">Order Summary</h2>
               
-              {/* Item List */}
               <div className="space-y-6 mb-8 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                 {cart.items.map((item) => (
                   <div key={`${item.id}-${item.size}`} className="flex gap-4">
@@ -305,33 +451,55 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
-              {/* 🚀 VOUCHER SECTION */}
+              {/* 🚀 HYBRID PROMO SECTION */}
               <div className="mb-8 border-t border-gray-50 pt-8">
-                {isCheckoutDataLoading ? (
-                  <div className="animate-pulse h-12 bg-gray-50 border border-gray-100 flex items-center px-4"><div className="h-2 w-24 bg-gray-200 rounded"></div></div>
-                ) : selectedVoucher ? (
-                  <div className="flex items-center justify-between p-4 bg-green-50 border border-green-100">
+                {selectedVoucher ? (
+                  <div className="flex items-center justify-between p-4 bg-green-50 border border-green-100 mb-4 animate-in fade-in duration-300">
                     <div className="flex items-center gap-3">
-                      <Ticket className="w-4 h-4 text-green-700" />
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
                       <div>
-                        <p className="text-[10px] font-bold uppercase text-green-800">{selectedVoucher.promo.code}</p>
-                        <p className="text-[8px] uppercase tracking-widest text-green-600 mt-0.5">Voucher Applied</p>
+                        <p className="text-[10px] font-bold uppercase text-green-800 tracking-wider">{selectedVoucher.promo.code}</p>
+                        <p className="text-[8px] uppercase tracking-[0.1em] text-green-600 mt-0.5">
+                          {selectedVoucher.promo.type === 'SHIPPING' ? 'Free Shipping Subsidy' : 'Voucher Applied'}
+                        </p>
                       </div>
                     </div>
-                    <button type="button" onClick={() => setSelectedVoucher(null)} className="text-[9px] font-bold text-red-500 uppercase tracking-widest hover:underline">Remove</button>
+                    <button type="button" onClick={() => {setSelectedVoucher(null); setClaimMessage(null);}} className="text-gray-400 hover:text-red-500 transition-colors"><X className="w-4 h-4" /></button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => setIsVoucherModalOpen(true)} className="w-full h-12 flex items-center justify-between px-4 border border-gray-200 bg-gray-50 hover:bg-white hover:border-black transition-colors group">
-                    <span className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-gray-600 group-hover:text-black">
-                      <Ticket className="w-4 h-4" /> Apply Promo / Voucher
-                    </span>
-                    <span className="text-[10px] bg-black text-white px-2 py-0.5">{availableVouchers.length} Available</span>
+                  <div className="mb-4 space-y-3">
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="DISCOUNT CODE" 
+                        value={claimCode}
+                        onChange={(e) => setClaimCode(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleApplyPromoCode(); } }}
+                        className="flex-1 h-12 px-4 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-[10px] font-bold tracking-widest uppercase transition-all"
+                      />
+                      <button type="button" onClick={handleApplyPromoCode} disabled={isClaiming || !claimCode} className="bg-black text-white px-6 h-12 text-[10px] font-bold uppercase tracking-widest hover:bg-gray-800 disabled:bg-gray-100 disabled:text-gray-400 transition-colors">
+                        {isClaiming ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+                      </button>
+                    </div>
+                    {claimMessage && (
+                      <div className={`flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest ${claimMessage.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>
+                        {claimMessage.type === 'error' ? <AlertCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                        {claimMessage.text}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!selectedVoucher && (
+                  <button type="button" onClick={openVoucherModal} className="w-full flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-black transition-colors group py-2">
+                    <span className="flex items-center gap-2"><Ticket className="w-4 h-4" /> View Wallet</span>
+                    {availableVouchers.length > 0 && <span className="text-[8px] bg-gray-100 group-hover:bg-black group-hover:text-white px-1.5 py-0.5 transition-colors">{availableVouchers.length} Available</span>}
                   </button>
                 )}
               </div>
 
-              {/* Cost Calculation */}
-              <div className="space-y-4 mb-8">
+              {/* RINCIAN PERHITUNGAN */}
+              <div className="space-y-4 mb-10 pt-4">
                 <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] text-gray-500">
                   <span>Subtotal</span>
                   <span className="font-bold text-black">{formatRupiah(subtotal)}</span>
@@ -339,10 +507,12 @@ export default function CheckoutPage() {
                 
                 <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] text-gray-500">
                   <span>Shipping</span>
-                  <span className="font-bold text-black">{shippingCost > 0 ? formatRupiah(shippingCost) : '-'}</span>
+                  <div className="text-right">
+                    {isShippingDiscount && discountAmount > 0 && <span className="line-through text-gray-300 mr-2">{formatRupiah(shippingCost)}</span>}
+                    <span className="font-bold text-black">{shippingCost === 0 ? '-' : isShippingDiscount ? formatRupiah(Math.max(0, shippingCost - discountAmount)) : formatRupiah(shippingCost)}</span>
+                  </div>
                 </div>
 
-                {/* 🚀 ADMIN FEES */}
                 {calculatedFees.map(fee => (
                   <div key={fee.id} className="flex justify-between text-[10px] uppercase tracking-[0.2em] text-gray-500">
                     <span>{fee.name}</span>
@@ -350,82 +520,178 @@ export default function CheckoutPage() {
                   </div>
                 ))}
 
-                {/* 🚀 DISCOUNT */}
-                {discountAmount > 0 && (
-                  <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] text-green-600">
-                    <span>Discount</span>
-                    <span className="font-bold">- {formatRupiah(discountAmount)}</span>
+                {!isShippingDiscount && discountAmount > 0 && (
+                  <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] text-green-600 font-bold">
+                    <span>Voucher Discount</span>
+                    <span>- {formatRupiah(discountAmount)}</span>
                   </div>
                 )}
               </div>
 
-              <div className="border-t border-black pt-6 mb-8 flex items-center justify-between">
+              <div className="border-t border-black pt-8 mb-10 flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-[0.3em]">Total</span>
                 <span className="text-2xl font-serif italic">{formatRupiah(totalAmount)}</span>
               </div>
               
-              <button 
-                type="submit" 
-                disabled={isProcessingPay || !selectedShipping}
-                className="w-full bg-black text-white text-center py-6 text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gray-800 transition-all disabled:bg-gray-100 disabled:text-gray-400"
-              >
+              <button type="submit" disabled={isProcessingPay || !selectedShipping || !selectedAddress} className="w-full bg-black text-white text-center py-6 text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gray-800 transition-all disabled:bg-gray-100 disabled:text-gray-400">
                 {isProcessingPay ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Complete Order'}
               </button>
             </div>
           </div>
-
         </form>
       </div>
 
-      {/* 🚀 MODAL PILIH VOUCHER */}
+      {/* ========================================== */}
+      {/* 🚀 MODAL MANAJEMEN BUKU ALAMAT             */}
+      {/* ========================================== */}
+      {isAddressModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+            
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em]">
+                {isAddAddressMode ? (editingAddressId ? 'Edit Address' : 'Add New Address') : 'Select Delivery Address'}
+              </h2>
+              <button type="button" onClick={closeAddressModal} className="text-gray-400 hover:text-black"><X className="w-5 h-5"/></button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 bg-white">
+              {isAddAddressMode ? (
+                // FORM TAMBAH / EDIT ALAMAT
+                <form id="addAddressForm" onSubmit={submitNewAddress} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Recipient Name</label>
+                      <input type="text" required value={newAddress.recipientName} onChange={e => setNewAddress({...newAddress, recipientName: e.target.value})} className="w-full h-10 px-3 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-sm" placeholder="John Doe" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Phone Number</label>
+                      <input type="tel" required value={newAddress.phone} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} className="w-full h-10 px-3 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-sm" placeholder="0812..." />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 relative" ref={searchRef}>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">District / City</label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input 
+                        type="text" required placeholder="Type district or city name..." value={searchKeyword}
+                        onChange={(e) => { setSearchKeyword(e.target.value); setSelectedDestination(null); }}
+                        className="w-full h-10 pl-10 pr-4 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-sm"
+                      />
+                      {isSearchingLocation && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />}
+                    </div>
+                    {showDropdown && destinations.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 shadow-xl max-h-48 overflow-y-auto">
+                        {destinations.map((dest) => (
+                          <button key={dest.id} type="button" onClick={() => handleSelectDestination(dest)} className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50">
+                            <p className="text-[11px] font-bold uppercase">{dest.subdistrict_name}, {dest.city_name}</p>
+                            <p className="text-[9px] text-gray-500 uppercase mt-0.5">{dest.province_name} - {dest.zip_code}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Full Street Address</label>
+                    <textarea required rows={3} value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-3 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-sm resize-none" placeholder="House number, street, block..." />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 items-end">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Postal Code</label>
+                      <input type="text" required value={newAddress.postalCode} onChange={e => setNewAddress({...newAddress, postalCode: e.target.value})} className="w-full h-10 px-3 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-sm" />
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer pb-2">
+                      <input type="checkbox" checked={newAddress.isDefault} onChange={e => setNewAddress({...newAddress, isDefault: e.target.checked})} className="w-4 h-4 accent-black" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Set as Default</span>
+                    </label>
+                  </div>
+                </form>
+              ) : (
+                // LIST ALAMAT TERSIMPAN
+                <div className="space-y-4">
+                  {savedAddresses.map((addr) => (
+                    <div key={addr.id} onClick={() => handleSelectAddressForCheckout(addr)} className={`p-5 border cursor-pointer transition-all ${selectedAddress?.id === addr.id ? 'border-black bg-gray-50/50' : 'border-gray-200 hover:border-gray-400 bg-white'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold uppercase">{addr.recipientName}</span>
+                          {addr.isDefault && <span className="text-[8px] bg-black text-white px-2 py-0.5 uppercase tracking-widest">Default</span>}
+                        </div>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); handleEditAddress(addr); }} className="text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:underline">
+                          Edit
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-gray-600 mb-2">{addr.phone}</p>
+                      <p className="text-[10px] text-gray-500 leading-relaxed">{addr.street}<br/>{addr.cityName}, {addr.provinceName} {addr.postalCode}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-gray-50 shrink-0">
+              {isAddAddressMode ? (
+                <div className="flex gap-3 justify-end">
+                  {savedAddresses.length > 0 && (
+                    <button type="button" onClick={() => { setIsAddAddressMode(false); setEditingAddressId(null); }} className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:bg-gray-200 transition-colors">
+                      Cancel
+                    </button>
+                  )}
+                  <button form="addAddressForm" type="submit" disabled={isSavingAddress} className="bg-black text-white px-8 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-gray-800 disabled:bg-gray-400 transition-colors flex items-center gap-2">
+                    {isSavingAddress ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Address'}
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setIsAddAddressMode(true)} className="w-full border border-black text-black bg-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
+                  <Plus className="w-4 h-4" /> Add New Address
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* 🚀 MODAL WALLET VOUCHER                    */}
+      {/* ========================================== */}
       {isVoucherModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h2 className="text-xs font-bold uppercase tracking-widest">My Wallet</h2>
-              <button onClick={() => setIsVoucherModalOpen(false)} className="text-gray-400 hover:text-black">&times;</button>
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em]">My Voucher Wallet</h2>
+              <button onClick={closeVoucherModal} className="text-gray-400 hover:text-black"><X className="w-5 h-5"/></button>
             </div>
             
             <div className="p-6 max-h-[60vh] overflow-y-auto bg-gray-50 space-y-4">
               {availableVouchers.length === 0 ? (
-                <div className="text-center py-8">
-                  <Ticket className="w-8 h-8 mx-auto text-gray-300 mb-3" />
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">No vouchers available</p>
+                <div className="text-center py-12">
+                  <Ticket className="w-10 h-10 mx-auto text-gray-200 mb-4" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Your wallet is currently empty</p>
                 </div>
               ) : (
                 availableVouchers.map((v) => {
                   const isValid = subtotal >= v.promo.minPurchase;
-                  
                   return (
-                    <div key={v.id} className={`p-5 border relative transition-all bg-white ${isValid ? 'border-gray-200' : 'opacity-60 grayscale cursor-not-allowed'}`}>
-                      <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-gray-50 rounded-full border-r border-gray-200"></div>
-                      <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-gray-50 rounded-full border-l border-gray-200"></div>
-
-                      <div className="flex justify-between items-start mb-4">
+                    <div key={v.id} className={`p-6 border relative transition-all bg-white ${isValid ? 'border-gray-200' : 'opacity-60 grayscale'}`}>
+                      <div className="flex justify-between items-start">
                         <div>
-                          <p className="text-xl font-serif italic text-black">
+                          <p className="text-2xl font-serif italic text-black">
                             {v.promo.type === 'PERCENTAGE' ? `${v.promo.value}% OFF` : v.promo.type === 'NOMINAL' ? formatRupiah(v.promo.value) : 'Free Shipping'}
                           </p>
-                          <h3 className="text-[10px] font-bold uppercase tracking-widest mt-1 text-gray-500">{v.promo.name}</h3>
+                          <h3 className="text-[10px] font-bold uppercase tracking-[0.1em] mt-1 text-gray-500">{v.promo.name}</h3>
                         </div>
-                        {isValid ? (
-                           <button 
-                             onClick={() => { setSelectedVoucher(v); setIsVoucherModalOpen(false); }}
-                             className="bg-black text-white px-4 py-2 text-[8px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-colors"
-                           >
-                             Use
-                           </button>
-                        ) : (
-                           <span className="text-[8px] font-bold uppercase tracking-widest text-red-500 bg-red-50 px-2 py-1">Min. Purchase Not Met</span>
+                        {isValid && (
+                           <button onClick={() => { setSelectedVoucher(v); closeVoucherModal(); }} className="bg-black text-white px-5 py-2 text-[8px] font-bold uppercase tracking-widest hover:bg-gray-800">Use</button>
                         )}
                       </div>
-                      
-                      <div className="pt-3 border-t border-dashed border-gray-100 flex justify-between items-center text-[9px] text-gray-400 uppercase tracking-widest">
+                      <div className="pt-4 mt-4 border-t border-dashed border-gray-100 flex justify-between text-[8px] text-gray-400 uppercase tracking-widest font-bold">
                         <span>Min. Spend: {formatRupiah(v.promo.minPurchase)}</span>
-                        <span>{v.promo.maxDiscount ? `Max: ${formatRupiah(v.promo.maxDiscount)}` : 'No Cap'}</span>
+                        <span>{v.promo.maxDiscount ? `Up to ${formatRupiah(v.promo.maxDiscount)}` : 'Unlimited'}</span>
                       </div>
                     </div>
-                  )
+                  );
                 })
               )}
             </div>
