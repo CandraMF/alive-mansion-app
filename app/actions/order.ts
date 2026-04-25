@@ -8,41 +8,36 @@ import { Xendit } from 'xendit-node';
 const xendit = new Xendit({ secretKey: process.env.XENDIT_SECRET_KEY || '' });
 
 export async function createOrderAction(orderData: any) {
-
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.email) {
-      return { success: false, error: 'Anda harus login untuk melakukan pesanan.' };
+      return { success: false, error: 'You must be logged in to place an order.' };
     }
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
     });
 
-    if (!user) return { success: false, error: 'User tidak ditemukan.' };
+    if (!user) return { success: false, error: 'User not found.' };
 
     // ==========================================
     // 🚀 SAFETY CHECK & GET PRODUCT ID
-    // Kita cek berdasarkan variantId yang dikirim dari Cart
     // ==========================================
     const variantIds = orderData.items.map((item: any) => item.variantId).filter(Boolean);
-
+    
     const existingVariants = await prisma.variant.findMany({
       where: { id: { in: variantIds } },
-      select: {
-        id: true,
-        productId: true // 🚀 Ambil productId aslinya dari database!
-      }
+      select: { id: true, productId: true } 
     });
 
     if (existingVariants.length !== variantIds.length) {
-      return {
-        success: false,
-        error: 'Beberapa produk di keranjang Anda sudah tidak tersedia di toko. Mohon perbarui keranjang Anda.'
+      return { 
+        success: false, 
+        error: 'Some products in your cart are no longer available. Please refresh your cart.' 
       };
     }
 
-    // 1. Simpan Order ke Database
+    // 1. Save Order to Database
     const newOrder = await prisma.order.create({
       data: {
         userId: user.id,
@@ -56,14 +51,12 @@ export async function createOrderAction(orderData: any) {
         courierService: orderData.courierService,
         shippingAddress: orderData.shippingAddress,
         voucherCode: orderData.voucherCode,
-
+        
         items: {
           create: orderData.items.map((item: any) => {
-            // Cocokkan variantId untuk mendapatkan productId yang valid
             const matchedVariant = existingVariants.find(v => v.id === item.variantId);
-
             return {
-              productId: item.productId || matchedVariant?.productId || null, // 🚀 Super Aman!
+              productId: item.productId || matchedVariant?.productId || null, 
               variantId: item.variantId,
               name: item.name,
               sku: item.sku || 'SKU-000',
@@ -78,9 +71,41 @@ export async function createOrderAction(orderData: any) {
       }
     });
 
-    // 2. Buat Invoice di Xendit
+    // ==========================================
+    // 🚀 VOUCHER DEDUCTION (RESERVE VOUCHER)
+    // ==========================================
+    if (orderData.voucherCode) {
+      const promo = await prisma.promo.findUnique({ where: { code: orderData.voucherCode } });
+      
+      if (promo) {
+        // Find the user's available voucher for this promo
+        const userVoucher = await prisma.userVoucher.findFirst({
+          where: { 
+            userId: user.id, 
+            promoId: promo.id, 
+            status: 'AVAILABLE' 
+          }
+        });
+        
+        if (userVoucher) {
+          // 1. Mark user's voucher as USED
+          await prisma.userVoucher.update({
+            where: { id: userVoucher.id },
+            data: { status: 'USED', usedAt: new Date() }
+          });
+          
+          // 2. Increment global promo usage quota
+          await prisma.promo.update({
+            where: { id: promo.id },
+            data: { quotaUsed: { increment: 1 } }
+          });
+        }
+      }
+    }
+
+    // 2. Create Xendit Invoice
     const invoicePayload = {
-      externalId: newOrder.id,
+      externalId: newOrder.id, 
       amount: newOrder.totalAmount,
       payerEmail: user.email,
       description: `Payment for Order #${newOrder.id.slice(-6).toUpperCase()} at Alive Mansion`,
@@ -102,7 +127,7 @@ export async function createOrderAction(orderData: any) {
 
     const response = await xendit.Invoice.createInvoice({ data: invoicePayload });
 
-    // 3. Update Database kita dengan URL Pembayaran
+    // 3. Update Database with Payment URL
     await prisma.order.update({
       where: { id: newOrder.id },
       data: {
@@ -115,6 +140,6 @@ export async function createOrderAction(orderData: any) {
 
   } catch (error: any) {
     console.error("Order Creation Error:", error);
-    return { success: false, error: error.message || 'Gagal membuat pesanan.' };
+    return { success: false, error: error.message || 'Failed to create order.' };
   }
 }

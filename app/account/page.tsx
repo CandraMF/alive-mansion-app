@@ -2,9 +2,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { User as UserIcon } from 'lucide-react';
+import { User as UserIcon, ChevronLeft } from 'lucide-react';
+import Link from 'next/link';
 import ClientLogout from './ClientLogout';
-import AccountTabs from './AccountTabs'; // 🚀 Import komponen baru
+import AccountTabs from './AccountTabs'; 
 
 export default async function AccountPage() {
   const session = await getServerSession(authOptions);
@@ -19,9 +20,7 @@ export default async function AccountPage() {
       },
       orders: {
         orderBy: { createdAt: 'desc' },
-        include: {
-          items: { include: { variant: { include: { product: true, size: true, color: true } } } }
-        }
+        include: { items: true } 
       }
     }
   });
@@ -29,8 +28,18 @@ export default async function AccountPage() {
   if (!user) redirect('/register');
 
   return (
-    <div className="min-h-screen bg-white text-black pt-8 pb-24 px-4 md:px-12 font-sans">
+    <div className="min-h-screen bg-white text-black pt-28 pb-24 px-4 md:px-12 font-sans">
       <div className="max-w-[1200px] mx-auto">
+
+        {/* 🚀 TOMBOL BACK TO HOME */}
+        <div className="mb-8">
+          <Link 
+            href="/" 
+            className="inline-flex items-center text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-black transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" /> Back to Home
+          </Link>
+        </div>
 
         {/* HEADER SECTION */}
         <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-gray-200 pb-8 mb-12 gap-6">

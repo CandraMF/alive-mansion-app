@@ -9,40 +9,39 @@ export async function claimVoucherAction(code: string) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.email) {
-      return { error: 'Anda harus login untuk klaim voucher.' };
+      return { success: false, error: 'You must be logged in to claim vouchers.' };
     }
 
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user) return { error: 'User tidak ditemukan.' };
+    if (!user) return { success: false, error: 'User not found.' };
 
-    const cleanCode = code.toUpperCase().replace(/\s+/g, '');
-
-    // 1. Cari promo di database
-    const promo = await prisma.promo.findUnique({ where: { code: cleanCode } });
-
-    if (!promo) return { error: 'Kode promo tidak valid atau tidak ditemukan.' };
-    if (!promo.isActive) return { error: 'Promo ini sedang tidak aktif.' };
-
-    // 2. Cek Tanggal Berlaku
-    const now = new Date();
-    if (promo.startDate && promo.startDate > now) return { error: 'Promo ini belum dimulai.' };
-    if (promo.endDate && promo.endDate < now) return { error: 'Promo ini sudah kedaluwarsa.' };
-
-    // 3. Cek Kuota Global
-    if (promo.quotaTotal !== null && promo.quotaUsed >= promo.quotaTotal) {
-      return { error: 'Maaf, kuota promo ini sudah habis diklaim.' };
-    }
-
-    // 4. Cek Batas Klaim per User (Max Claims)
-    const userClaimsCount = await prisma.userVoucher.count({
-      where: { userId: user.id, promoId: promo.id }
+    // 1. Cari Promo berdasarkan kode
+    const promo = await prisma.promo.findUnique({
+      where: { code: code.toUpperCase() },
+      include: { claimedVouchers: { where: { userId: user.id } } }
     });
 
-    if (userClaimsCount >= promo.maxClaimsPerUser) {
-      return { error: `Anda sudah mencapai batas maksimal klaim (${promo.maxClaimsPerUser}x) untuk voucher ini.` };
+    if (!promo || !promo.isActive) {
+      return { success: false, error: 'Voucher code is invalid or has expired.' };
     }
 
-    // 5. Eksekusi Klaim: Masukkan ke dompet user & kurangi kuota master
+    // 2. Cek apakah periode promo valid
+    const now = new Date();
+    if (promo.startDate > now || (promo.endDate && promo.endDate < now)) {
+      return { success: false, error: 'Voucher is not active at this time.' };
+    }
+
+    // 3. Cek Quota Total Promo
+    if (promo.quotaTotal !== null && promo.quotaUsed >= promo.quotaTotal) {
+      return { success: false, error: 'Voucher quota has been reached.' };
+    }
+
+    // 4. Cek limit klaim per user
+    if (promo.claimedVouchers.length >= promo.maxClaimsPerUser) {
+      return { success: false, error: 'You have already reached the maximum claim limit for this voucher.' };
+    }
+
+    // 5. Eksekusi Klaim
     await prisma.$transaction([
       prisma.userVoucher.create({
         data: {
@@ -57,12 +56,11 @@ export async function claimVoucherAction(code: string) {
       })
     ]);
 
-    revalidatePath('/checkout');
     revalidatePath('/account');
-    return { success: true };
+    return { success: true, message: 'Voucher claimed successfully!' };
 
   } catch (error) {
-    console.error("CLAIM VOUCHER ERROR:", error);
-    return { error: 'Terjadi kesalahan pada server saat klaim voucher.' };
+    console.error(error);
+    return { success: false, error: 'Something went wrong. Please try again.' };
   }
 }
