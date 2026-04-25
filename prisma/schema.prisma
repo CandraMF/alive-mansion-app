@@ -60,7 +60,9 @@ model Product {
   variants Variant[]
   images   ProductImage[]
 
-  weight      Int      @default(500)
+  orderItems OrderItem[]
+
+  weight Int @default(500)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -111,93 +113,38 @@ model Variant {
 }
 
 // ==========================================
-// 📦 TABEL ORDER (DIPERBARUI)
+// ORDER & PAYMENT SYSTEM
 // ==========================================
 model Order {
-  id            String  @id @default(cuid())
-  customerName  String
-  customerEmail String
-  customerPhone String? // 🚀 Baru: Telepon pembeli
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  notes         String? @db.Text
+  addressId String?
+  address   Address? @relation(fields: [addressId], references: [id], onDelete: SetNull)
 
-  // 💰 RINCIAN HARGA (SNAPSHOT)
-  subtotal      Int      @default(0) // Total harga murni barang
-  shippingCost  Int      @default(0) // Ongkos kirim
-  discount      Int      @default(0) // Potongan voucher
-  totalAmount   Int      // Hasil akhir: (subtotal + shipping + fees - discount)
+  xenditInvoiceId String? @unique
+  paymentStatus   String  @default("UNPAID")
+  paymentMethod   String?
+  paymentUrl      String? @db.Text
 
-  // 🚚 PENGIRIMAN & ALAMAT
-  courier       String?  // misal: "JNE REG" atau "SICEPAT BEST"
-  addressId     String?
-  address       Address? @relation(fields: [addressId], references: [id], onDelete: SetNull)
-  fullAddress   String?  @db.Text // Snapshot alamat (jika user menghapus alamatnya, data di nota tidak hilang)
+  subtotal       Int
+  shippingCost   Int
+  discountAmount Int @default(0)
+  taxAmount      Int @default(0)
+  totalAmount    Int
 
-  // 💳 PEMBAYARAN & STATUS
-  status        String  @default("PENDING") // PENDING, PAID, PROCESSING, SHIPPED, COMPLETED, CANCELLED
-  paymentUrl    String? // Link menuju halaman Xendit/Midtrans
-  paymentId     String? // ID Transaksi dari Xendit/Midtrans
+  courier         String
+  courierService  String
+  shippingAddress String @db.Text
 
-  userId        String?
-  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  voucherCode String?
 
-  items         OrderItem[]
-  fees          OrderFee[] // 🚀 Rincian biaya tambahan pada pesanan ini
+  orderStatus String  @default("PENDING")
+  resiNumber  String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ==========================================
-// 🏠 ALAMAT PENGIRIMAN & RAJAONGKIR
-// ==========================================
-model Address {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label         String?  // misal: "Rumah", "Kantor"
-  recipientName String
-  phone         String
-  street        String   @db.Text
-  
-  // Data wajib untuk hitung ongkir RajaOngkir
-  cityId        String   
-  cityName      String
-  provinceId    String   
-  provinceName  String
-  postalCode    String
-  
-  isDefault     Boolean  @default(false)
-  orders        Order[]
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
-
-// ==========================================
-// 💸 MANAJEMEN BIAYA TAMBAHAN (ADMIN & INVOICE)
-// ==========================================
-
-// 1. Pengaturan Admin (Global)
-// Di sini Admin bisa membuat "Biaya Layanan", "Asuransi", "Biaya Kemasan", dll.
-model StoreFee {
-  id          String  @id @default(cuid())
-  name        String  
-  amount      Float   
-  isPercentage Boolean @default(false) // Jika true, amount adalah persen (%)
-  isActive    Boolean @default(true)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-// 2. Snapshot Biaya yang menempel di suatu Pesanan (Nota)
-model OrderFee {
-  id        String  @id @default(cuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  name      String  // misal: "Biaya Layanan"
-  amount    Int     // Sudah dibulatkan jadi nominal (Rupiah)
+  items OrderItem[]
+  fees  OrderFee[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -208,11 +155,77 @@ model OrderItem {
   orderId String
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  variantId String
-  variant   Variant @relation(fields: [variantId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
+  variantId String?
+  variant   Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  name     String
+  sku      String
+  price    Int
   quantity Int
-  priceAt  Int
+  color    String
+  size     String
+  imageUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 🏠 ALAMAT PENGIRIMAN & RAJAONGKIR
+// ==========================================
+model Address {
+  id            String  @id @default(cuid())
+  userId        String
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String? // misal: "Rumah", "Kantor"
+  recipientName String
+  phone         String
+  street        String  @db.Text
+
+  // Data wajib untuk hitung ongkir RajaOngkir
+  cityId       String
+  cityName     String
+  provinceId   String
+  provinceName String
+  postalCode   String
+
+  isDefault Boolean @default(false)
+  orders    Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 💸 MANAJEMEN BIAYA TAMBAHAN (ADMIN & INVOICE)
+// ==========================================
+
+// 1. Pengaturan Admin (Global)
+// Di sini Admin bisa membuat "Biaya Layanan", "Asuransi", "Biaya Kemasan", dll.
+model StoreFee {
+  id           String  @id @default(cuid())
+  name         String
+  amount       Float
+  isPercentage Boolean @default(false) // Jika true, amount adalah persen (%)
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 2. Snapshot Biaya yang menempel di suatu Pesanan (Nota)
+model OrderFee {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name    String // misal: "Biaya Layanan"
+  amount  Int // Sudah dibulatkan jadi nominal (Rupiah)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Page {
@@ -435,17 +448,17 @@ model CartItem {
 }
 
 model StoreSetting {
-  id              String   @id @default("default") 
-  
-  storeName       String   @default("Alive Mansion")
-  whatsappNumber  String?  
-  
-  originCityId    String   @default("24") 
-  originCityName  String   @default("Bandung Barat")
-  activeCouriers  String   @default("jne,jnt,sicepat") 
-  
-  isMaintenance   Boolean  @default(false) 
-  taxRate         Float    @default(0) 
-  
-  updatedAt       DateTime @updatedAt
+  id String @id @default("default")
+
+  storeName      String  @default("Alive Mansion")
+  whatsappNumber String?
+
+  originCityId   String @default("24")
+  originCityName String @default("Bandung Barat")
+  activeCouriers String @default("jne,jnt,sicepat")
+
+  isMaintenance Boolean @default(false)
+  taxRate       Float   @default(0)
+
+  updatedAt DateTime @updatedAt
 }
