@@ -67,31 +67,36 @@ export default function CheckoutPage() {
     fetchInitialData();
   }, []);
 
-  // 2. Kalkulasi Ongkir Paralel
   const handleCalculateShipping = async (destinationCityId: string, settings: any, itemsToCalculate: any[]) => {
     if (!settings) return;
-    setIsLoadingShipping(true); setShippingOptions([]); setSelectedShipping(null);
+    setIsLoadingShipping(true); 
+    setShippingOptions([]); 
+    setSelectedShipping(null);
 
     try {
       const totalWeight = itemsToCalculate.reduce((total, item) => total + ((item.weight || 500) * item.quantity), 0);
-      const couriers = (settings.activeCouriers || 'jne').split(',').map((c: string) => c.trim()).filter(Boolean);
-
-      const fetchPromises = couriers.map(async (courierCode: string) => {
-        try {
-          const res = await fetch('/api/rajaongkir/cost', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ originCityId: settings.originCityId || '152', destinationCityId, weightInGrams: totalWeight, courier: courierCode })
-          });
-          const data = await res.json();
-          return data.success ? data.data : [];
-        } catch (e) { return []; }
+      
+      // Kita hanya melakukan 1x request ke API internal kita!
+      const res = await fetch('/api/rajaongkir/cost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          originCityId: settings.originCityId || '152', 
+          destinationCityId, 
+          weightInGrams: totalWeight, 
+          courier: settings.activeCouriers || 'jne,jnt,sicepat' 
+        })
       });
-
-      const results = await Promise.all(fetchPromises);
-      setShippingOptions(results.flat().sort((a: any, b: any) => a.cost - b.cost));
-    } catch (error) { console.error(error); } 
-    finally { setIsLoadingShipping(false); }
+      
+      const data = await res.json();
+      if (data.success) {
+         setShippingOptions(data.data);
+      }
+    } catch (error) { 
+      console.error(error); 
+    } finally { 
+      setIsLoadingShipping(false); 
+    }
   };
 
   // 3. Hitung Total Pembayaran

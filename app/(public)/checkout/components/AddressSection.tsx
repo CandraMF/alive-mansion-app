@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { MapPin, Home, Plus, X, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { MapPin, Home, Plus, X, Loader2, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { addAddressAction, editAddressAction, getAddressesAction } from '@/app/actions/address';
 
 interface AddressSectionProps {
@@ -17,34 +17,21 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // State Form Teks
+  // Form State
   const [newAddress, setNewAddress] = useState({ 
     recipientName: '', phone: '', street: '', postalCode: '', isDefault: false,
-    // State bayangan untuk menampung data lama saat Edit
     cityId: '', cityName: '', provinceId: '', provinceName: ''
   });
-
-  // State Hierarki Lokasi Dropdown
-  const [provinces, setProvinces] = useState<any[]>([]);
-  const [cities, setCities] = useState<any[]>([]);
-  const [districts, setDistricts] = useState<any[]>([]);
-  const [subdistricts, setSubdistricts] = useState<any[]>([]);
-
-  const [selectedProv, setSelectedProv] = useState<any>(null);
-  const [selectedCity, setSelectedCity] = useState<any>(null);
-  const [selectedDist, setSelectedDist] = useState<any>(null);
-  const [selectedSubdist, setSelectedSubdist] = useState<any>(null);
-
-  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
   // ==========================================
   // 🚀 FUNGSI SAPU BERSIH FORM
   // ==========================================
   const resetForm = () => {
-    setNewAddress({ recipientName: '', phone: '', street: '', postalCode: '', isDefault: false, cityId: '', cityName: '', provinceId: '', provinceName: '' });
+    setNewAddress({ 
+      recipientName: '', phone: '', street: '', postalCode: '', isDefault: false, 
+      cityId: '', cityName: '', provinceId: '', provinceName: '' 
+    });
     setEditingId(null);
-    setSelectedProv(null); setSelectedCity(null); setSelectedDist(null); setSelectedSubdist(null);
-    setCities([]); setDistricts([]); setSubdistricts([]);
   };
 
   // ==========================================
@@ -62,66 +49,191 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
   const closeModal = () => { setIsModalOpen(false); setIsAddMode(false); resetForm(); if (window.history.state?.modal) window.history.back(); };
 
   // ==========================================
-  // 🚀 LOGIKA CASCADING DROPDOWN API
+  // 🚀 CUSTOM COMPONENT: LOCATION PICKER
   // ==========================================
-  
-  // 1. Tarik Provinsi saat Form Tambah dibuka
-  useEffect(() => {
-    if (isAddMode && provinces.length === 0) {
-      setIsLoadingLocation(true);
-      // Nanti kita buat API route ini di langkah selanjutnya
-      fetch('/api/rajaongkir/hierarchy?type=province')
-        .then(res => res.json())
-        .then(data => { if (data.success) setProvinces(data.data); })
-        .finally(() => setIsLoadingLocation(false));
-    }
-  }, [isAddMode, provinces.length]);
+  const LocationPicker = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [step, setStep] = useState(0); // 0: Prov, 1: City, 2: Dist, 3: Subdist
+    const [options, setOptions] = useState<any[]>([]);
+    const [isFetching, setIsFetching] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selections, setSelections] = useState<any[]>([]);
+    
+    const pickerRef = useRef<HTMLDivElement>(null);
 
-  const handleProvinceChange = async (provId: string) => {
-    const prov = provinces.find(p => String(p.id) === provId);
-    setSelectedProv(prov);
-    setSelectedCity(null); setSelectedDist(null); setSelectedSubdist(null);
-    setCities([]); setDistricts([]); setSubdistricts([]);
-    if (!prov) return;
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+          setIsOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
-    setIsLoadingLocation(true);
-    const res = await fetch(`/api/rajaongkir/hierarchy?type=city&id=${provId}`);
-    const data = await res.json();
-    if (data.success) setCities(data.data);
-    setIsLoadingLocation(false);
-  };
+    const fetchOptions = async (currentStep: number, parentId: string | null = null) => {
+      setIsFetching(true);
+      let type = 'province';
+      if (currentStep === 1) type = 'city';
+      if (currentStep === 2) type = 'district';
+      if (currentStep === 3) type = 'subdistrict';
 
-  const handleCityChange = async (cityId: string) => {
-    const city = cities.find(c => String(c.id) === cityId);
-    setSelectedCity(city);
-    setSelectedDist(null); setSelectedSubdist(null);
-    setDistricts([]); setSubdistricts([]);
-    if (!city) return;
+      const url = parentId ? `/api/rajaongkir/hierarchy?type=${type}&id=${parentId}` : `/api/rajaongkir/hierarchy?type=${type}`;
+      
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        setOptions(data.success ? data.data : []);
+      } catch (err) {
+        console.error(err);
+        setOptions([]);
+      } finally {
+        setIsFetching(false);
+      }
+    };
 
-    setIsLoadingLocation(true);
-    const res = await fetch(`/api/rajaongkir/hierarchy?type=district&id=${cityId}`);
-    const data = await res.json();
-    if (data.success) setDistricts(data.data);
-    setIsLoadingLocation(false);
-  };
+    const handleOpen = () => {
+      setIsOpen(true);
+      // Reset if opened fresh without previous selections in picker
+      if (step === 0 && options.length === 0) {
+        fetchOptions(0);
+      }
+    };
 
-  const handleDistrictChange = async (distId: string) => {
-    const dist = districts.find(d => String(d.id) === distId);
-    setSelectedDist(dist);
-    setSelectedSubdist(null);
-    setSubdistricts([]);
-    if (!dist) return;
+    const jumpToStep = (targetStep: number) => {
+      setStep(targetStep);
+      setSearchQuery('');
+      const parentId = targetStep === 0 ? null : selections[targetStep - 1].id;
+      fetchOptions(targetStep, parentId);
+    };
 
-    setIsLoadingLocation(true);
-    const res = await fetch(`/api/rajaongkir/hierarchy?type=subdistrict&id=${distId}`);
-    const data = await res.json();
-    if (data.success) setSubdistricts(data.data);
-    setIsLoadingLocation(false);
-  };
+    const handleSelect = (item: any) => {
+      const newSelections = [...selections.slice(0, step), item];
+      setSelections(newSelections);
+      setSearchQuery('');
 
-  const handleSubdistrictChange = (subId: string) => {
-    const sub = subdistricts.find(s => String(s.id) === subId);
-    setSelectedSubdist(sub);
+      if (step < 3) {
+        setStep(step + 1);
+        fetchOptions(step + 1, item.id);
+      } else {
+        // Final Step (Sub-district/Village Selected)
+        const finalCityName = `${newSelections[3].name}, ${newSelections[2].name}, ${newSelections[1].name}`;
+        setNewAddress(prev => ({
+          ...prev,
+          cityId: String(item.id),
+          cityName: finalCityName,
+          provinceId: String(newSelections[0].id),
+          provinceName: newSelections[0].name
+        }));
+        setIsOpen(false);
+      }
+    };
+
+    const filteredOptions = options.filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return (
+      <div className="relative w-full" ref={pickerRef}>
+        {/* INPUT TRIGGER */}
+        <div 
+          onClick={handleOpen}
+          className="w-full min-h-[40px] px-3 py-2.5 border border-gray-200 bg-white text-sm cursor-pointer flex items-center justify-between hover:border-black transition-colors"
+        >
+          <div className="flex flex-col gap-0.5 pr-4">
+            {newAddress.cityId ? (
+              <>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600">Selected Destination</span>
+                <span className="text-gray-900 font-medium capitalize leading-tight text-xs">{newAddress.cityName}, {newAddress.provinceName}</span>
+              </>
+            ) : (
+              <span className="text-gray-400 text-xs">Select Province, City, District...</span>
+            )}
+          </div>
+          <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+        </div>
+
+        {/* POPOVER / MODAL DROPDOWN */}
+        {isOpen && (
+          <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 shadow-xl z-50 animate-in fade-in slide-in-from-top-2">
+            
+            {/* HEADER: BREADCRUMBS */}
+            <div className="p-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+              <div className="flex flex-wrap items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                <button type="button" onClick={() => jumpToStep(0)} className={`hover:text-black transition-colors ${step === 0 ? "text-black" : ""}`}>Prov</button>
+                
+                {step > 0 && (
+                  <>
+                    <ChevronRight className="w-3 h-3" />
+                    <button type="button" onClick={() => jumpToStep(1)} className={`hover:text-black transition-colors truncate max-w-[70px] ${step === 1 ? "text-black" : ""}`}>
+                      {selections[0]?.name || 'City'}
+                    </button>
+                  </>
+                )}
+                
+                {step > 1 && (
+                  <>
+                    <ChevronRight className="w-3 h-3" />
+                    <button type="button" onClick={() => jumpToStep(2)} className={`hover:text-black transition-colors truncate max-w-[70px] ${step === 2 ? "text-black" : ""}`}>
+                      {selections[1]?.name || 'District'}
+                    </button>
+                  </>
+                )}
+
+                {step > 2 && (
+                  <>
+                    <ChevronRight className="w-3 h-3" />
+                    <span className={`truncate max-w-[70px] ${step === 3 ? "text-black" : ""}`}>
+                      Village
+                    </span>
+                  </>
+                )}
+              </div>
+              <button type="button" onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} className="text-gray-400 hover:text-black"><X className="w-4 h-4" /></button>
+            </div>
+
+            {/* SEARCH BAR */}
+            <div className="p-2 border-b border-gray-100">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder={`Search ${step === 0 ? 'province' : step === 1 ? 'city' : step === 2 ? 'district' : 'village'}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-8 pl-9 pr-4 bg-gray-50 border-transparent focus:bg-white focus:border-black outline-none text-xs transition-all"
+                />
+              </div>
+            </div>
+
+            {/* LIST OF OPTIONS */}
+            <div className="max-h-56 overflow-y-auto custom-scrollbar">
+              {isFetching ? (
+                <div className="flex flex-col items-center justify-center py-6 text-gray-400">
+                  <Loader2 className="w-4 h-4 animate-spin mb-2" />
+                  <span className="text-[9px] font-bold uppercase tracking-widest">Loading...</span>
+                </div>
+              ) : filteredOptions.length === 0 ? (
+                <div className="text-center py-6 text-[9px] font-bold uppercase tracking-widest text-gray-400">
+                  No results found
+                </div>
+              ) : (
+                <ul className="flex flex-col">
+                  {filteredOptions.map((opt) => (
+                    <li 
+                      key={opt.id}
+                      onClick={() => handleSelect(opt)}
+                      className="px-3 py-2.5 hover:bg-gray-50 border-b border-gray-50 last:border-0 cursor-pointer flex justify-between items-center group transition-colors"
+                    >
+                      <span className="text-xs font-medium text-gray-700 group-hover:text-black uppercase">{opt.name}</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-gray-200 group-hover:text-black opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // ==========================================
@@ -140,26 +252,15 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
   const submitAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    let finalCityId = newAddress.cityId;
-    let finalCityName = newAddress.cityName;
-    let finalProvId = newAddress.provinceId;
-    let finalProvName = newAddress.provinceName;
-
-    // Jika user memilih lokasi baru dari dropdown sampai ujung
-    if (selectedSubdist) {
-      finalCityId = String(selectedSubdist.id);
-      finalCityName = `${selectedSubdist.name}, ${selectedDist?.name}, ${selectedCity?.name}`;
-      finalProvId = String(selectedProv?.id);
-      finalProvName = selectedProv?.name;
-    } else if (!editingId || !finalCityId) {
-      // Jika ini tambah alamat baru, tapi belum sampai Kelurahan
-      return alert("Mohon lengkapi pilihan lokasi hingga tingkat Desa/Kelurahan!");
+    if (!newAddress.cityId) {
+      return alert("Please select the complete delivery destination up to the village/sub-district level!");
     }
 
     setIsSaving(true);
     const addressData = {
       recipientName: newAddress.recipientName, phone: newAddress.phone, street: newAddress.street,
-      cityId: finalCityId, cityName: finalCityName, provinceId: finalProvId, provinceName: finalProvName,
+      cityId: newAddress.cityId, cityName: newAddress.cityName, 
+      provinceId: newAddress.provinceId, provinceName: newAddress.provinceName,
       postalCode: newAddress.postalCode, isDefault: newAddress.isDefault || savedAddresses.length === 0
     };
 
@@ -172,7 +273,7 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
       onSelectAddress(res.address);
       closeModal();
     } else {
-      alert(res.error || "Gagal menyimpan alamat");
+      alert(res.error || "Failed to save address.");
     }
     setIsSaving(false);
   };
@@ -231,45 +332,12 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
                     <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Phone Number</label><input type="tel" required value={newAddress.phone} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} className="w-full h-10 px-3 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-sm" placeholder="0812..." /></div>
                   </div>
 
-                  {/* 🚀 HIERARKI DROPDOWN LOKASI */}
-                  <div className="space-y-3 bg-gray-50 p-4 border border-gray-200">
-                    <div className="flex items-center justify-between">
-                       <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Tujuan Pengiriman</label>
-                       {isLoadingLocation && <Loader2 className="w-3 h-3 text-gray-400 animate-spin" />}
-                    </div>
-                    
-                    {editingId && newAddress.cityId && !selectedProv && (
-                      <div className="mb-4 p-3 bg-blue-50 border border-blue-100 text-xs text-blue-800">
-                        <p className="font-bold mb-1">Lokasi Tersimpan:</p>
-                        <p>{newAddress.cityName}, {newAddress.provinceName}</p>
-                        <p className="text-[9px] mt-2 text-blue-600 uppercase tracking-widest font-bold">*Pilih provinsi di bawah jika ingin mengubah lokasi tujuan.</p>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <select className="w-full h-10 px-3 border border-gray-200 bg-white text-xs outline-none focus:border-black truncate" value={selectedProv?.id || ""} onChange={(e) => handleProvinceChange(e.target.value)}>
-                        <option value="">Pilih Provinsi</option>
-                        {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-
-                      <select className="w-full h-10 px-3 border border-gray-200 bg-white text-xs outline-none focus:border-black disabled:bg-gray-100 disabled:text-gray-400 truncate" value={selectedCity?.id || ""} onChange={(e) => handleCityChange(e.target.value)} disabled={!selectedProv}>
-                        <option value="">Pilih Kota/Kabupaten</option>
-                        {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-
-                      <select className="w-full h-10 px-3 border border-gray-200 bg-white text-xs outline-none focus:border-black disabled:bg-gray-100 disabled:text-gray-400 truncate" value={selectedDist?.id || ""} onChange={(e) => handleDistrictChange(e.target.value)} disabled={!selectedCity}>
-                        <option value="">Pilih Kecamatan</option>
-                        {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
-
-                      <select className="w-full h-10 px-3 border border-gray-200 bg-white text-xs outline-none focus:border-black disabled:bg-gray-100 disabled:text-gray-400 truncate" value={selectedSubdist?.id || ""} onChange={(e) => handleSubdistrictChange(e.target.value)} disabled={!selectedDist}>
-                        <option value="">Pilih Desa/Kelurahan</option>
-                        {subdistricts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                    </div>
+                  <div className="space-y-2 relative">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Delivery Destination</label>
+                    <LocationPicker />
                   </div>
 
-                  <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Full Street Address</label><textarea required rows={3} value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-3 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-sm resize-none" placeholder="Detail alamat rumah, patokan..." /></div>
+                  <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Full Street Address</label><textarea required rows={3} value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-3 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-sm resize-none" placeholder="House number, block, landmarks..." /></div>
                   <div className="grid grid-cols-2 gap-4 items-end">
                     <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Postal Code</label><input type="text" required value={newAddress.postalCode} onChange={e => setNewAddress({...newAddress, postalCode: e.target.value})} className="w-full h-10 px-3 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-sm" /></div>
                     <label className="flex items-center gap-2 cursor-pointer pb-2"><input type="checkbox" checked={newAddress.isDefault} onChange={e => setNewAddress({...newAddress, isDefault: e.target.checked})} className="w-4 h-4 accent-black" /><span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Set as Default</span></label>

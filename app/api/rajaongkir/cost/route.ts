@@ -6,48 +6,67 @@ const BASE_URL = 'https://rajaongkir.komerce.id/api/v1';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-
     const { originCityId, destinationCityId, weightInGrams, courier } = body;
 
     if (!API_KEY) {
-      return NextResponse.json({ success: false, message: "API Key logistik belum diatur di server." }, { status: 500 });
+      return NextResponse.json({ success: false, message: "Logistics API Key not found." }, { status: 500 });
     }
 
     if (!originCityId || !destinationCityId || !weightInGrams || !courier) {
-      return NextResponse.json({ success: false, message: "Parameter origin, destination, weight, dan courier wajib diisi." }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Missing required parameters." }, { status: 400 });
     }
 
-    const response = await fetch(`${BASE_URL}/calculate/domestic-cost`, {
+    // 🚀 UBAH FORMAT: Komerce meminta pemisah titik dua (:) bukan koma (,)
+    const formattedCouriers = courier.split(',').map((c: string) => c.trim()).join(':');
+
+    // 🚀 ENDPOINT BARU: /calculate/district/domestic-cost
+    const response = await fetch(`${BASE_URL}/calculate/district/domestic-cost`, {
       method: 'POST',
       headers: {
         'key': API_KEY,
         'Content-Type': 'application/x-www-form-urlencoded'
       },
       body: new URLSearchParams({
-        origin: originCityId, destination: destinationCityId, weight: weightInGrams.toString(), courier: courier.toLowerCase()
+        origin: originCityId,
+        destination: destinationCityId,
+        weight: weightInGrams.toString(),
+        courier: formattedCouriers,
+        price: 'lowest' // 🚀 PARAMETER AJAIB DARI DOKUMENTASI
       }).toString()
     });
 
     const data = await response.json();
 
     if (!data.success || !data.data || data.data.length === 0) {
-      console.warn(`[Komerce API] Kurir ${courier} tidak tersedia untuk rute ini.`, data);
-      return NextResponse.json({ success: true, data: [] }, { status: 200 });
+      return NextResponse.json({ success: true, data: [] }, { status: 200 }); 
     }
 
-    const costsArray = data.data[0]?.costs || [];
+    // Komerce mengembalikan array kurir: [{ code: 'jne', name: 'JNE', costs: [...] }, ...]
+    // Kita ratakan (flatten) semua `costs` dari berbagai kurir menjadi satu array pilihan
+    const allFormattedOptions: any[] = [];
 
-    const formattedOptions = costsArray.map((costItem: any) => ({
-      service: costItem.service,
-      description: costItem.description,
-      cost: costItem.cost[0]?.value || 0,
-      etd: costItem.cost[0]?.etd || '-', name: data.data[0]?.name || courier.toUpperCase()
-    }));
+    data.data.forEach((courierData: any) => {
+      const courierName = courierData.name || courierData.code.toUpperCase();
+      
+      if (courierData.costs && courierData.costs.length > 0) {
+        courierData.costs.forEach((costItem: any) => {
+          allFormattedOptions.push({
+            service: costItem.service,
+            description: costItem.description,
+            cost: costItem.cost[0]?.value || 0,
+            etd: costItem.cost[0]?.etd || '-',
+            name: courierName
+          });
+        });
+      }
+    });
 
-    return NextResponse.json({ success: true, data: formattedOptions }, { status: 200 });
+    const sortedOptions = allFormattedOptions.sort((a, b) => a.cost - b.cost);
+
+    return NextResponse.json({ success: true, data: sortedOptions }, { status: 200 });
 
   } catch (error: any) {
-    console.error("RAJAONGKIR/KOMERCE COST ERROR:", error);
-    return NextResponse.json({ success: false, message: error.message || "Gagal menghitung ongkos kirim." }, { status: 500 });
+    console.error("RAJAONGKIR COST API ERROR:", error);
+    return NextResponse.json({ success: false, message: "Failed to calculate shipping cost." }, { status: 500 });
   }
 }
