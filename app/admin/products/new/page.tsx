@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { 
-  ChevronLeft, UploadCloud, X, Info, Layers, ImageIcon, 
+import {
+  ChevronLeft, UploadCloud, X, Info, Layers, ImageIcon,
   Eye, GripVertical, Maximize2, Palette, Star, RefreshCcw
 } from 'lucide-react';
 
@@ -36,14 +36,14 @@ export default function NewProductPage() {
   const [masterColors, setMasterColors] = useState<Color[]>([]);
   const [masterSizes, setMasterSizes] = useState<Size[]>([]);
   const [isFetchingMasters, setIsFetchingMasters] = useState(true);
-  
+
   // FITUR BARU: Flag untuk memastikan data LocalStorage sudah dimuat
   const [isHydrated, setIsHydrated] = useState(false);
 
   // --- FORM STATE ---
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', description: '', status: 'PUBLISHED', categoryId: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', status: 'PUBLISHED', categoryId: '', weight: 500 });
 
   // --- VARIANTS & MATRIX ---
   const [selectedColorIds, setSelectedColorIds] = useState<string[]>([]);
@@ -90,10 +90,10 @@ export default function NewProductPage() {
             console.error("Gagal membaca draft", e);
           }
         }
-      } catch (err) { 
-        setError("Gagal memuat data master."); 
-      } finally { 
-        setIsFetchingMasters(false); 
+      } catch (err) {
+        setError("Gagal memuat data master.");
+      } finally {
+        setIsFetchingMasters(false);
         setIsHydrated(true); // Tandai bahwa pemulihan data selesai
       }
     };
@@ -105,7 +105,7 @@ export default function NewProductPage() {
   // ==========================================
   useEffect(() => {
     // Jangan simpan apapun jika data awal belum selesai dimuat (menghindari overwrite)
-    if (!isHydrated) return; 
+    if (!isHydrated) return;
 
     const draftData = {
       formData,
@@ -145,7 +145,7 @@ export default function NewProductPage() {
     } else {
       setMainVariantKey('');
     }
-  }, [selectedColorIds, selectedSizeIds]); 
+  }, [selectedColorIds, selectedSizeIds]);
 
   const toggleColor = (id: string) => setSelectedColorIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
   const toggleSize = (id: string) => setSelectedSizeIds(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
@@ -229,7 +229,7 @@ export default function NewProductPage() {
     const variantsPayload = activeVariants.map(v => ({
       colorId: v.colorId, sizeId: v.sizeId,
       stock: variantMatrix[v.key]?.stock || 0, price: variantMatrix[v.key]?.price || 0,
-      isMain: v.key === mainVariantKey 
+      isMain: v.key === mainVariantKey
     }));
 
     try {
@@ -238,10 +238,10 @@ export default function NewProductPage() {
         body: JSON.stringify({ ...formData, variants: variantsPayload, images: images.map((img, idx) => ({ ...img, position: idx })) }),
       });
       if (!response.ok) throw new Error((await response.json()).error || 'Gagal menyimpan');
-      
+
       // FITUR BARU: Bersihkan memori draft setelah produk berhasil disimpan ke Database
       localStorage.removeItem(DRAFT_KEY);
-      
+
       router.push('/admin/products'); router.refresh();
     } catch (err: any) { setError(err.message); setIsLoading(false); }
   };
@@ -303,7 +303,7 @@ export default function NewProductPage() {
           <div className="flex items-center gap-3">
             <Link href="/admin/products" className="flex items-center text-sm text-gray-500 hover:text-black mb-1"><ChevronLeft className="w-4 h-4 mr-1" /> Kembali</Link>
             {/* Indikator Auto-Save */}
-            {formData.name && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest mb-1 flex items-center gap-1"><RefreshCcw className="w-3 h-3"/> Draft Tersimpan</span>}
+            {formData.name && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest mb-1 flex items-center gap-1"><RefreshCcw className="w-3 h-3" /> Draft Tersimpan</span>}
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Add New Product</h1>
         </div>
@@ -323,7 +323,7 @@ export default function NewProductPage() {
           <Card className="shadow-sm border-gray-200">
             <CardHeader><CardTitle className="text-lg">Info Umum</CardTitle></CardHeader><Separator />
             <CardContent className="pt-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2"><Label>Nama Produk</Label><Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
                 <div className="space-y-2">
                   <Label>Kategori</Label>
@@ -337,6 +337,16 @@ export default function NewProductPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Berat Barang (Gram)</Label>
+                  <Input 
+                    type="number" 
+                    min="1"
+                    placeholder="Misal: 500" 
+                    value={formData.weight || ''} 
+                    onChange={(e) => setFormData({ ...formData, weight: parseInt(e.target.value) || 0 })} 
+                  />
                 </div>
               </div>
               <div className="space-y-2"><Label>Deskripsi</Label><Textarea rows={4} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>

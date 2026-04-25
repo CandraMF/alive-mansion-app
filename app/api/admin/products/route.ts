@@ -98,7 +98,9 @@ export async function POST(request: Request) {
       description,
       status,
       categoryId,
-      variants, images } = body;
+      weight,
+      variants, images
+    } = body;
 
     if (!name || !variants || variants.length === 0 || !images || images.length === 0) {
       return NextResponse.json(
@@ -111,6 +113,7 @@ export async function POST(request: Request) {
       data: {
         name,
         description,
+        weight: parseInt(weight, 10) || 500,
         status: status || 'PUBLISHED',
         categoryId: categoryId || null,
 

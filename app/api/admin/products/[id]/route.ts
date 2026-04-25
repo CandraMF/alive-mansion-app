@@ -40,7 +40,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, status, categoryId, variants, images } = body;
+    const { name, description, status, categoryId, weight, variants, images } = body;
 
     if (!name || !variants || variants.length === 0 || !images || images.length === 0) {
       return NextResponse.json(
@@ -57,6 +57,7 @@ export async function PUT(
         data: {
           name,
           description,
+          weight: parseInt(weight, 10) || 500,
           status: status || 'PUBLISHED',
           categoryId: categoryId || null,
         }

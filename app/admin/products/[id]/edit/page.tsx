@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { 
-  ChevronLeft, UploadCloud, X, Info, Layers, ImageIcon, 
+import {
+  ChevronLeft, UploadCloud, X, Info, Layers, ImageIcon,
   Eye, GripVertical, Maximize2, Palette, Star, Loader2, Save
 } from 'lucide-react';
 
@@ -35,14 +35,14 @@ export default function EditProductPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [masterColors, setMasterColors] = useState<Color[]>([]);
   const [masterSizes, setMasterSizes] = useState<Size[]>([]);
-  
+
   const [isFetchingMasters, setIsFetchingMasters] = useState(true);
   const [isDataLoaded, setIsDataLoaded] = useState(false); // Flag agar efek auto-kombinasi tidak menimpa data awal
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // --- FORM STATE ---
-  const [formData, setFormData] = useState({ name: '', description: '', status: 'PUBLISHED', categoryId: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', status: 'PUBLISHED', categoryId: '', weight: 500 });
 
   // --- VARIANTS & MATRIX ---
   const [selectedColorIds, setSelectedColorIds] = useState<string[]>([]);
@@ -90,7 +90,8 @@ export default function EditProductPage() {
           name: product.name || '',
           description: product.description || '',
           status: product.status || 'PUBLISHED',
-          categoryId: product.categoryId || ''
+          categoryId: product.categoryId || '',
+          weight: product.weight || 500
         });
 
         // Map Varian
@@ -127,12 +128,12 @@ export default function EditProductPage() {
           })));
         }
 
-      } catch (err: any) { 
-        setError(err.message || "Gagal memuat data ruang kerja."); 
-      } finally { 
-        setIsFetchingMasters(false); 
+      } catch (err: any) {
+        setError(err.message || "Gagal memuat data ruang kerja.");
+      } finally {
+        setIsFetchingMasters(false);
         // Beri sedikit jeda sebelum mengaktifkan auto-kombinasi agar render stabil
-        setTimeout(() => setIsDataLoaded(true), 100); 
+        setTimeout(() => setIsDataLoaded(true), 100);
       }
     };
     loadData();
@@ -143,7 +144,7 @@ export default function EditProductPage() {
   // ==========================================
   useEffect(() => {
     // PENTING: Jangan jalankan saat proses muat awal dari Database agar data tidak tertimpa
-    if (!isDataLoaded) return; 
+    if (!isDataLoaded) return;
 
     const theoreticalCombinations: ActiveVariant[] = [];
     selectedColorIds.forEach(cId => {
@@ -240,7 +241,7 @@ export default function EditProductPage() {
     const variantsPayload = activeVariants.map(v => ({
       colorId: v.colorId, sizeId: v.sizeId,
       stock: variantMatrix[v.key]?.stock || 0, price: variantMatrix[v.key]?.price || 0,
-      isMain: v.key === mainVariantKey 
+      isMain: v.key === mainVariantKey
     }));
 
     try {
@@ -250,7 +251,7 @@ export default function EditProductPage() {
         body: JSON.stringify({ ...formData, variants: variantsPayload, images: images.map((img, idx) => ({ ...img, position: idx })) }),
       });
       if (!response.ok) throw new Error((await response.json()).error || 'Gagal menyimpan pembaruan');
-      
+
       router.push('/admin/products'); router.refresh();
     } catch (err: any) { setError(err.message); setIsLoading(false); }
   };
@@ -320,7 +321,7 @@ export default function EditProductPage() {
         <div className="flex items-center gap-3">
           <Button variant="outline" type="button" onClick={() => router.push('/admin/products')}>Batal</Button>
           <Button onClick={handleSubmit} disabled={isLoading || isUploading || !isDataLoaded} className="bg-blue-600 hover:bg-blue-700 text-white shadow-md">
-            {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/> Menyimpan...</> : <><Save className="w-4 h-4 mr-2"/> Simpan Perubahan</>}
+            {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menyimpan...</> : <><Save className="w-4 h-4 mr-2" /> Simpan Perubahan</>}
           </Button>
         </div>
       </div>
@@ -334,7 +335,7 @@ export default function EditProductPage() {
           <Card className="shadow-sm border-gray-200">
             <CardHeader><CardTitle className="text-lg">Info Umum</CardTitle></CardHeader><Separator />
             <CardContent className="pt-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2"><Label>Nama Produk</Label><Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
                 <div className="space-y-2">
                   <Label>Kategori</Label>
@@ -348,6 +349,16 @@ export default function EditProductPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Berat Barang (Gram)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="Misal: 500"
+                    value={formData.weight || ''}
+                    onChange={(e) => setFormData({ ...formData, weight: parseInt(e.target.value) || 0 })}
+                  />
                 </div>
               </div>
               <div className="space-y-2"><Label>Deskripsi</Label><Textarea rows={4} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
