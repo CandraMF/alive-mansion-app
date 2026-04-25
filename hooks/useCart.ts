@@ -18,15 +18,19 @@ export interface CartItem {
 interface CartStore {
   items: CartItem[];
   isLoading: boolean;
+  selectedItems: string[];
   fetchCart: () => Promise<void>;
   addItem: (data: Omit<CartItem, 'quantity'>) => Promise<void>;
   removeItem: (id: string, size: string) => Promise<void>;
   updateQuantity: (id: string, size: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
+  toggleSelect: (id: string, size: string) => void;
+  toggleSelectAll: (isSelected: boolean) => void;
 }
 
 export const useCart = create<CartStore>((set, get) => ({
   items: [],
+  selectedItems: [],
   isLoading: false,
 
   // Tarik data dari Database saat pertama kali masuk web
@@ -34,13 +38,29 @@ export const useCart = create<CartStore>((set, get) => ({
     set({ isLoading: true });
     try {
       const items = await getCartAction();
-      set({ items });
+      // Otomatis centang semua barang saat pertama kali dimuat
+      const allSelected = items.map(item => `${item.id}-${item.size}`);
+      set({ items, selectedItems: allSelected });
     } catch (error) {
       console.error("Gagal menarik data keranjang", error);
     } finally {
       set({ isLoading: false });
     }
   },
+
+  toggleSelect: (id, size) => set((state) => {
+    const key = `${id}-${size}`;
+    const isSelected = state.selectedItems.includes(key);
+    return {
+      selectedItems: isSelected 
+        ? state.selectedItems.filter(k => k !== key) 
+        : [...state.selectedItems, key]
+    };
+  }),
+
+  toggleSelectAll: (isSelected) => set((state) => ({
+    selectedItems: isSelected ? state.items.map(item => `${item.id}-${item.size}`) : []
+  })),
 
   addItem: async (data) => {
     const currentItems = get().items;
@@ -69,14 +89,13 @@ export const useCart = create<CartStore>((set, get) => ({
   },
 
   removeItem: async (id, size) => {
-    // Optimistic hapus berdasarkan ID dan Size
-    set({ items: get().items.filter((item) => !(item.id === id && item.size === size)) }); 
-    try {
-      await removeFromCartAction(id); // Asumsi backend hanya butuh variantId (id)
-    } catch (error) {
-      console.error("Gagal menghapus dari database", error);
-      await get().fetchCart();
-    }
+    const keyToRemove = `${id}-${size}`;
+    set({ 
+      items: get().items.filter((item) => !(item.id === id && item.size === size)),
+      selectedItems: get().selectedItems.filter(k => k !== keyToRemove)
+    }); 
+    try { await removeFromCartAction(id); } 
+    catch (error) { await get().fetchCart(); }
   },
 
   updateQuantity: async (id, size, quantity) => {
