@@ -6,6 +6,12 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
+    if (token?.isSuspended) {
+      if (path.startsWith("/api/")) {
+        return NextResponse.json({ error: "Account suspended." }, { status: 403 });
+      }
+    }
+
     // 1. CEGAH USER LOGIN MASUK KE AREA (auth)
     const authPaths = ["/register", "/forgot-password", "/reset-password"];
     const isAuthPath = authPaths.some((prefix) => path.startsWith(prefix));
@@ -47,7 +53,10 @@ export default withAuth(
         const isProtected = protectedPaths.some((prefix) => path.startsWith(prefix));
 
         if (isProtected) {
-          return !!token; // Akan return 401 Unauthorized jika tidak ada session valid
+          // 🚀 Jika user mencoba akses halaman terproteksi tapi statusnya suspended, anggap tidak punya akses valid
+          if (token?.isSuspended) return false; 
+          
+          return !!token; 
         }
 
         // Biarkan rute lain lewat (termasuk public pages, cart, dan webhook xendit)

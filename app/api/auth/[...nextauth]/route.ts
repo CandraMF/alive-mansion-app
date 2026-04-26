@@ -10,7 +10,7 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 Hari
+    maxAge: 30 * 24 * 60 * 60,
   },
 
   pages: {
@@ -18,7 +18,6 @@ export const authOptions: NextAuthOptions = {
   },
 
   providers: [
-    // --- A. GOOGLE LOGIN ---
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
@@ -34,7 +33,6 @@ export const authOptions: NextAuthOptions = {
       }
     }),
 
-    // --- B. EMAIL & PASSWORD LOGIN ---
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -54,7 +52,6 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email tidak terdaftar atau login menggunakan Google");
         }
 
-        // 🚀 PROTEKSI 1: Tolak jika akun sedang di-suspend (Email/Password)
         if (user.isSuspended) {
           throw new Error("Akun Anda telah ditangguhkan. Silakan hubungi admin.");
         }
@@ -77,37 +74,26 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    // 🚀 PROTEKSI 2: Tolak jika akun di-suspend (Berlaku juga untuk Google Login)
-    async signIn({ user }) {
-      if (user.email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email },
-          select: { isSuspended: true }
-        });
-
-        if (dbUser?.isSuspended) {
-          // Akan melempar error kembali ke halaman login (URL: /register?error=...)
-          throw new Error("Akun Anda telah ditangguhkan. Silakan hubungi admin.");
-        }
-      }
-      return true;
-    },
-
     async jwt({ token, user }) {
-      // 1. Saat pertama kali login
       if (user) {
         token.role = (user as any).role;
         token.permissions = (user as any).permissions;
+        token.lastChecked = Date.now(); // Simpan waktu pengecekan pertama
       }
 
-      if (token.sub) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: { isSuspended: true }
-        });
+      // 🚀 LOGIKA OPTIMASI: Hanya cek DB jika pengecekan terakhir > 2 menit yang lalu
+      const TWO_MINUTES = 2 * 60 * 1000;
+      const now = Date.now();
 
-        if (dbUser?.isSuspended) {
-          return {};
+      if (!token.lastChecked || (now - (token.lastChecked as number)) > TWO_MINUTES) {
+        if (token.sub) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.sub },
+            select: { isSuspended: true }
+          });
+
+          token.isSuspended = dbUser?.isSuspended || false;
+          token.lastChecked = now; // Update waktu pengecekan terakhir
         }
       }
 
@@ -115,19 +101,18 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      if (!token || Object.keys(token).length === 0) {
-        return { ...session, user: undefined as any };
-      }
-
-      if (token && session.user) {
+      if (token?.isSuspended) {
+        (session as any).isSuspended = true;
+        session.user = undefined as any;
+      } else if (token && session.user) {
+        (session.user as any).id = token.sub;
         (session.user as any).role = token.role;
         (session.user as any).permissions = token.permissions;
-        (session.user as any).id = token.sub;
+        (session as any).isSuspended = false;
       }
       return session;
-    }
+    },
   },
-
   secret: process.env.NEXTAUTH_SECRET,
 };
 

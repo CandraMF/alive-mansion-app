@@ -7,8 +7,10 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import AuthProvider from '@/components/AuthProvider';
-import InitCart from '@/components/InitCart'; // 🚀 Ganti import ini
+import InitCart from '@/components/InitCart'; 
 import PromoModal from '@/components/PromoModal';
+// 🚀 1. Import komponen baru
+import SuspendShield from '@/components/SuspendShield'; 
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const themeSettings = await prisma.themeSetting.findUnique({ where: { key: 'global' } });
@@ -21,6 +23,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
       <main className="flex-1 pt-12">
         <AuthProvider>
+          <SuspendShield />
           <InitCart />
           <PromoModal />
           {children}
