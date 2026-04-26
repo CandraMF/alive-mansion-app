@@ -1,21 +1,12 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { withAuthAction } from '@/lib/safe-action';
 
-const getUser = async () => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return null;
-  return prisma.user.findUnique({ where: { email: session.user.email } });
-};
-
-export async function getCartAction() {
-  const user = await getUser();
-  if (!user) return [];
-
+// 1. Ambil data keranjang
+export const getCartAction = withAuthAction(async (userId) => {
   const cartItems = await prisma.cartItem.findMany({
-    where: { userId: user.id },
+    where: { userId },
     include: {
       variant: {
         include: {
@@ -41,14 +32,12 @@ export async function getCartAction() {
     quantity: item.quantity,
     weight: item.variant.product.weight || 500,
   }));
-}
+});
 
-export async function addToCartAction(variantId: string, quantity: number = 1) {
-  const user = await getUser();
-  if (!user) throw new Error("Unauthorized");
-
+// 2. Tambah item ke keranjang
+export const addToCartAction = withAuthAction(async (userId, variantId: string, quantity: number = 1) => {
   const existing = await prisma.cartItem.findUnique({
-    where: { userId_variantId: { userId: user.id, variantId } }
+    where: { userId_variantId: { userId, variantId } }
   });
 
   if (existing) {
@@ -58,39 +47,33 @@ export async function addToCartAction(variantId: string, quantity: number = 1) {
     });
   } else {
     await prisma.cartItem.create({
-      data: { userId: user.id, variantId, quantity }
+      data: { userId, variantId, quantity }
     });
   }
   return { success: true };
-}
+});
 
-export async function updateCartItemAction(variantId: string, quantity: number) {
-  const user = await getUser();
-  if (!user) throw new Error("Unauthorized");
-
+// 3. Update kuantitas item
+export const updateCartItemAction = withAuthAction(async (userId, variantId: string, quantity: number) => {
   await prisma.cartItem.update({
-    where: { userId_variantId: { userId: user.id, variantId } },
+    where: { userId_variantId: { userId, variantId } },
     data: { quantity }
   });
   return { success: true };
-}
+});
 
-export async function removeFromCartAction(variantId: string) {
-  const user = await getUser();
-  if (!user) throw new Error("Unauthorized");
-
+// 4. Hapus item dari keranjang
+export const removeFromCartAction = withAuthAction(async (userId, variantId: string) => {
   await prisma.cartItem.delete({
-    where: { userId_variantId: { userId: user.id, variantId } }
+    where: { userId_variantId: { userId, variantId } }
   });
   return { success: true };
-}
+});
 
-export async function clearCartAction() {
-  const user = await getUser();
-  if (!user) return { success: false };
-
+// 5. Kosongkan semua isi keranjang
+export const clearCartAction = withAuthAction(async (userId) => {
   await prisma.cartItem.deleteMany({
-    where: { userId: user.id }
+    where: { userId }
   });
   return { success: true };
-}
+});

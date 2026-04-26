@@ -1,23 +1,11 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { revalidatePath } from 'next/cache';
+import { withAdminAction } from '@/lib/safe-action';
 
-// 🔒 SECURITY CHECK
-async function verifyAdmin() {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
-
-  if (!session || role === 'CUSTOMER') {
-    throw new Error('Unauthorized Access: Admin / Staff Only');
-  }
-}
-
-export async function getPromosAction() {
-  await verifyAdmin();
-
+// 1. GET ALL PROMOS
+export const getPromosAction = withAdminAction(async (adminId) => {
   return await prisma.promo.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
@@ -26,11 +14,10 @@ export async function getPromosAction() {
       }
     }
   });
-}
+});
 
-export async function createPromoAction(data: any) {
-  await verifyAdmin();
-
+// 2. CREATE PROMO
+export const createPromoAction = withAdminAction(async (adminId, data: any) => {
   try {
     const cleanCode = data.code.toUpperCase().replace(/\s+/g, '');
 
@@ -53,8 +40,6 @@ export async function createPromoAction(data: any) {
         maxClaimsPerUser: data.maxClaimsPerUser || 1,
         startDate: data.startDate ? new Date(data.startDate) : new Date(),
         endDate: data.endDate ? new Date(data.endDate) : null,
-
-        // 🚀 TAMBAHAN: Kondisi Minimal Belanja & Maksimal Diskon
         minPurchase: data.minPurchase ? Number(data.minPurchase) : 0,
         maxDiscount: data.maxDiscount ? Number(data.maxDiscount) : null,
       }
@@ -67,11 +52,10 @@ export async function createPromoAction(data: any) {
     console.error("CREATE PROMO ERROR:", error);
     return { error: 'Failed to create promo. Please check the data.' };
   }
-}
+});
 
-export async function togglePromoStatusAction(id: string, isActive: boolean) {
-  await verifyAdmin();
-
+// 3. TOGGLE PROMO STATUS
+export const togglePromoStatusAction = withAdminAction(async (adminId, id: string, isActive: boolean) => {
   await prisma.promo.update({
     where: { id },
     data: { isActive }
@@ -79,15 +63,14 @@ export async function togglePromoStatusAction(id: string, isActive: boolean) {
 
   revalidatePath('/admin/promos');
   return { success: true };
-}
+});
 
-export async function deletePromoAction(id: string) {
-  await verifyAdmin();
-
+// 4. DELETE PROMO
+export const deletePromoAction = withAdminAction(async (adminId, id: string) => {
   await prisma.promo.delete({
     where: { id }
   });
 
   revalidatePath('/admin/promos');
   return { success: true };
-}
+});

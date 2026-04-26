@@ -1,24 +1,15 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { revalidatePath } from 'next/cache';
+import { withAuthAction } from '@/lib/safe-action';
 
-export async function claimVoucherAction(code: string) {
+export const claimVoucherAction = withAuthAction(async (userId, code: string) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-      return { success: false, error: 'You must be logged in to claim vouchers.' };
-    }
-
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user) return { success: false, error: 'User not found.' };
-
     // 1. Cari Promo berdasarkan kode
     const promo = await prisma.promo.findUnique({
       where: { code: code.toUpperCase() },
-      include: { claimedVouchers: { where: { userId: user.id } } }
+      include: { claimedVouchers: { where: { userId } } }
     });
 
     if (!promo || !promo.isActive) {
@@ -45,7 +36,7 @@ export async function claimVoucherAction(code: string) {
     await prisma.$transaction([
       prisma.userVoucher.create({
         data: {
-          userId: user.id,
+          userId: userId,
           promoId: promo.id,
           status: 'AVAILABLE'
         }
@@ -63,4 +54,4 @@ export async function claimVoucherAction(code: string) {
     console.error(error);
     return { success: false, error: 'Something went wrong. Please try again.' };
   }
-}
+});

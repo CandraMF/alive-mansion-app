@@ -2,8 +2,9 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { withAdminAction } from '@/lib/safe-action';
 
-// 1. Ambil Pengaturan Toko
+// 1. Ambil Pengaturan Toko (Publik: bisa diakses dari mana saja)
 export async function getStoreSettingAction() {
   try {
     let setting = await prisma.storeSetting.findUnique({
@@ -16,9 +17,9 @@ export async function getStoreSettingAction() {
         data: {
           id: 'default',
           storeName: 'Alive Mansion',
-          originCityId: '24', // 🚀 Lembang (Kab. Bandung Barat)
+          originCityId: '6011', // 🚀 Lembang (Kab. Bandung Barat)
           originCityName: 'Bandung Barat (Lembang)',
-          activeCouriers: 'jne,jnt,sicepat',
+          activeCouriers: 'jne,sicepat,ide,sap,jnt,ninja,tiki,lion,anteraja,pos,ncs,rex,rpx,sentral,star,wahana,dse',
           whatsappNumber: '628123456789'
         }
       });
@@ -31,17 +32,18 @@ export async function getStoreSettingAction() {
   }
 }
 
-// 2. Update Pengaturan Toko (Untuk Panel Admin nanti)
-export async function updateStoreSettingAction(data: any) {
+// 2. Update Pengaturan Toko (Khusus Admin)
+export const updateStoreSettingAction = withAdminAction(async (adminId, data: any) => {
   try {
     const updated = await prisma.storeSetting.update({
       where: { id: 'default' },
       data
     });
+
     revalidatePath('/checkout');
     revalidatePath('/admin/settings');
     return { success: true, data: updated };
   } catch (error) {
     return { error: "Gagal memperbarui pengaturan." };
   }
-}
+});

@@ -1,32 +1,22 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-
-
+import { withAuthAction } from '@/lib/safe-action';
 import { getStoreSettingAction } from './setting';
 
-export async function getCheckoutDataAction() {
-  const session = await getServerSession(authOptions);
-  
-  if (!session || !session.user?.email) {
-    throw new Error('Anda harus login untuk melakukan checkout');
-  }
-
-  
+export const getCheckoutDataAction = withAuthAction(async (userId) => {
   const [fees, settings, user] = await Promise.all([
-    
+    // 1. Ambil fee toko yang aktif
     prisma.storeFee.findMany({
       where: { isActive: true }
     }),
     
-    
+    // 2. Ambil pengaturan toko
     getStoreSettingAction(),
     
-    
+    // 3. Ambil data user beserta vouchernya menggunakan userId dari wrapper
     prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: userId },
       include: {
         vouchers: {
           where: { 
@@ -46,7 +36,6 @@ export async function getCheckoutDataAction() {
     })
   ]);
 
-  
   return {
     fees: fees || [],
     settings: settings, 
@@ -56,4 +45,4 @@ export async function getCheckoutDataAction() {
       email: user?.email || '',
     }
   };
-}
+});

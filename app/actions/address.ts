@@ -1,32 +1,19 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { revalidatePath } from 'next/cache';
-
-async function getUserId() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) throw new Error("Unauthorized");
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  return user?.id;
-}
+import { withAuthAction } from '@/lib/safe-action';
 
 // 1. Ambil semua alamat user
-export async function getAddressesAction() {
-  const userId = await getUserId();
-  if (!userId) return [];
+export const getAddressesAction = withAuthAction(async (userId) => {
   return await prisma.address.findMany({
     where: { userId },
     orderBy: { isDefault: 'desc' }
   });
-}
+});
 
 // 2. Tambah Alamat Baru
-export async function addAddressAction(data: any) {
-  const userId = await getUserId();
-  if (!userId) return { error: "Unauthorized" };
-
+export const addAddressAction = withAuthAction(async (userId, data: any) => {
   try {
     // Jika alamat ini diatur jadi default, matikan default alamat lain
     if (data.isDefault) {
@@ -61,13 +48,10 @@ export async function addAddressAction(data: any) {
     console.error("ADD ADDRESS ERROR:", error);
     return { error: "Failed to save address." };
   }
-}
+});
 
 // 3. Hapus Alamat
-export async function deleteAddressAction(id: string) {
-  const userId = await getUserId();
-  if (!userId) return { error: "Unauthorized" };
-
+export const deleteAddressAction = withAuthAction(async (userId, id: string) => {
   try {
     await prisma.address.delete({
       where: { id, userId }
@@ -82,13 +66,10 @@ export async function deleteAddressAction(id: string) {
     console.error("DELETE ADDRESS ERROR:", error);
     return { error: "Failed to delete address." };
   }
-}
+});
 
 // 4. Edit Alamat
-export async function editAddressAction(id: string, data: any) {
-  const userId = await getUserId();
-  if (!userId) return { error: "Unauthorized" };
-
+export const editAddressAction = withAuthAction(async (userId, id: string, data: any) => {
   try {
     // Jika diset sebagai default, matikan default alamat lain
     if (data.isDefault) {
@@ -117,10 +98,10 @@ export async function editAddressAction(id: string, data: any) {
     // 🚀 Refresh cache
     revalidatePath('/checkout');
     revalidatePath('/account');
-    
+
     return { success: true, address: updatedAddress };
   } catch (error) {
     console.error("EDIT ADDRESS ERROR:", error);
     return { error: "Failed to update address." };
   }
-}
+});

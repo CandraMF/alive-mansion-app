@@ -16,7 +16,7 @@ export default withAuth(
 
     // 2. PROTEKSI KHUSUS ADMIN
     if (path.startsWith("/admin") || path.startsWith("/api/admin")) {
-      if (token?.role !== "ADMIN") {
+      if (token?.role !== "SUPER_ADMIN") {
         // Jika request berupa API, return JSON 403 Forbidden. Jika halaman web, redirect ke Home.
         if (path.startsWith("/api/")) {
           return NextResponse.json({ error: "Forbidden: Admin only" }, { status: 403 });

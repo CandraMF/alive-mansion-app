@@ -1,46 +1,43 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { withAuthAction } from '@/lib/safe-action';
 import { Xendit } from 'xendit-node';
 
 const xendit = new Xendit({ secretKey: process.env.XENDIT_SECRET_KEY || '' });
 
-export async function createOrderAction(orderData: any) {
+export const createOrderAction = withAuthAction(async (userId, orderData: any) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-      return { success: false, error: 'You must be logged in to place an order.' };
-    }
-
+    // Kita butuh email user untuk dikirimkan ke payload Xendit Invoice
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { id: userId }
     });
 
-    if (!user) return { success: false, error: 'User not found.' };
+    if (!user || !user.email) {
+      return { success: false, error: 'User email not found.' };
+    }
 
     // ==========================================
     // 🚀 SAFETY CHECK & GET PRODUCT ID
     // ==========================================
     const variantIds = orderData.items.map((item: any) => item.variantId).filter(Boolean);
-    
+
     const existingVariants = await prisma.variant.findMany({
       where: { id: { in: variantIds } },
-      select: { id: true, productId: true } 
+      select: { id: true, productId: true }
     });
 
     if (existingVariants.length !== variantIds.length) {
-      return { 
-        success: false, 
-        error: 'Some products in your cart are no longer available. Please refresh your cart.' 
+      return {
+        success: false,
+        error: 'Some products in your cart are no longer available. Please refresh your cart.'
       };
     }
 
     // 1. Save Order to Database
     const newOrder = await prisma.order.create({
       data: {
-        userId: user.id,
+        userId: userId,
         addressId: orderData.addressId,
         subtotal: orderData.subtotal,
         shippingCost: orderData.shippingCost,
@@ -51,12 +48,12 @@ export async function createOrderAction(orderData: any) {
         courierService: orderData.courierService,
         shippingAddress: orderData.shippingAddress,
         voucherCode: orderData.voucherCode,
-        
+
         items: {
           create: orderData.items.map((item: any) => {
             const matchedVariant = existingVariants.find(v => v.id === item.variantId);
             return {
-              productId: item.productId || matchedVariant?.productId || null, 
+              productId: item.productId || matchedVariant?.productId || null,
               variantId: item.variantId,
               name: item.name,
               sku: item.sku || 'SKU-000',
@@ -76,24 +73,23 @@ export async function createOrderAction(orderData: any) {
     // ==========================================
     if (orderData.voucherCode) {
       const promo = await prisma.promo.findUnique({ where: { code: orderData.voucherCode } });
-      
+
       if (promo) {
-        // Find the user's available voucher for this promo
         const userVoucher = await prisma.userVoucher.findFirst({
-          where: { 
-            userId: user.id, 
-            promoId: promo.id, 
-            status: 'AVAILABLE' 
+          where: {
+            userId: userId,
+            promoId: promo.id,
+            status: 'AVAILABLE'
           }
         });
-        
+
         if (userVoucher) {
           // 1. Mark user's voucher as USED
           await prisma.userVoucher.update({
             where: { id: userVoucher.id },
             data: { status: 'USED', usedAt: new Date() }
           });
-          
+
           // 2. Increment global promo usage quota
           await prisma.promo.update({
             where: { id: promo.id },
@@ -105,7 +101,7 @@ export async function createOrderAction(orderData: any) {
 
     // 2. Create Xendit Invoice
     const invoicePayload = {
-      externalId: newOrder.id, 
+      externalId: newOrder.id,
       amount: newOrder.totalAmount,
       payerEmail: user.email,
       description: `Payment for Order #${newOrder.id.slice(-6).toUpperCase()} at Alive Mansion`,
@@ -142,4 +138,4 @@ export async function createOrderAction(orderData: any) {
     console.error("Order Creation Error:", error);
     return { success: false, error: error.message || 'Failed to create order.' };
   }
-}
+});

@@ -27,7 +27,7 @@ export function withAdminAction<Args extends any[], ReturnType>(
     if (!session?.user?.email) return { error: "Unauthorized: Silakan login terlebih dahulu." };
 
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user || user.role !== 'ADMIN') {
+    if (!user || user.role !== 'SUPER_ADMIN') {
       return { error: "Forbidden: Akses ditolak. Tindakan ini hanya untuk Admin." };
     }
 
