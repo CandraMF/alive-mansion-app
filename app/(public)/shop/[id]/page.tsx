@@ -13,16 +13,11 @@ export default async function ProductDetailPage({
   const product = await prisma.product.findUnique({
     where: { id },
     include: {
-      images: {
-        orderBy: { position: 'asc' }
-      },
+      category: true, // 🚀 WAJIB TAMBAHKAN INI
+      images: { orderBy: { position: 'asc' } },
       variants: {
-        // Ubah orderBy menggunakan sizeId atau biarkan default jika relasi kompleks
         orderBy: { sizeId: 'asc' },
-        include: {
-          color: true,
-          size: true
-        }
+        include: { color: true, size: true }
       },
     },
   });

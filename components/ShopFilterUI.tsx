@@ -123,7 +123,7 @@ function FilterUIContent({ categories, colors, sizes, currentCategoryHierarchy, 
       {/* FILTER CONTROLS */}
       <div className="flex justify-between items-center border-b border-gray-200 pb-4 mb-6">
         <button onClick={() => setIsDrawerOpen(true)} className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors px-5 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest">
-          Refine {activeFiltersCount > 0 && <span className="bg-black text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px]">{activeFiltersCount}</span>}
+          Filter {activeFiltersCount > 0 && <span className="bg-black text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px]">{activeFiltersCount}</span>}
         </button>
         <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-black">{totalProducts} Items</span>
       </div>

@@ -12,7 +12,7 @@ export interface CartItem {
   size: string;
   color: string; 
   quantity: number;
-  weight: number; // 🚀 TAMBAHAN: Properti berat untuk kalkulasi ongkir
+  weight: number; 
 }
 
 interface CartStore {
@@ -20,7 +20,8 @@ interface CartStore {
   isLoading: boolean;
   selectedItems: string[];
   fetchCart: () => Promise<void>;
-  addItem: (data: Omit<CartItem, 'quantity'>) => Promise<void>;
+  // 🚀 1. Izinkan pengiriman quantity sebagai parameter opsional
+  addItem: (data: Omit<CartItem, 'quantity'> & { quantity?: number }) => Promise<void>;
   removeItem: (id: string, size: string) => Promise<void>;
   updateQuantity: (id: string, size: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -33,12 +34,10 @@ export const useCart = create<CartStore>((set, get) => ({
   selectedItems: [],
   isLoading: false,
 
-  // Tarik data dari Database saat pertama kali masuk web
   fetchCart: async () => {
     set({ isLoading: true });
     try {
       const items = await getCartAction();
-      // Otomatis centang semua barang saat pertama kali dimuat
       const allSelected = items.map(item => `${item.id}-${item.size}`);
       set({ items, selectedItems: allSelected });
     } catch (error) {
@@ -63,28 +62,29 @@ export const useCart = create<CartStore>((set, get) => ({
   })),
 
   addItem: async (data) => {
+    // 🚀 2. Ambil quantity dari input UI (default 1 jika tidak ada)
+    const qtyToAdd = data.quantity || 1; 
+    
     const currentItems = get().items;
-    // Cek berdasarkan ID dan Size agar tidak tercampur jika beli produk sama tapi beda ukuran
     const existingItem = currentItems.find((item) => item.id === data.id && item.size === data.size);
 
     if (existingItem) {
       set({ 
         items: currentItems.map((item) => 
           item.id === data.id && item.size === data.size 
-            ? { ...item, quantity: item.quantity + 1 } 
+            ? { ...item, quantity: item.quantity + qtyToAdd } // 🚀 Tambahkan sesuai input
             : item 
         ) 
       });
     } else {
-      set({ items: [...currentItems, { ...data, quantity: 1 }] });
+      set({ items: [...currentItems, { ...data, quantity: qtyToAdd }] }); // 🚀 Set sesuai input
     }
 
-    // 2. Kirim ke Database
     try {
-      await addToCartAction(data.id, 1);
+      await addToCartAction(data.id, qtyToAdd); // 🚀 Kirim quantity ke server
     } catch (error) {
       console.error("Gagal menambah ke database", error);
-      await get().fetchCart(); // Jika gagal, kembalikan tampilan sesuai database
+      await get().fetchCart(); 
     }
   },
 
@@ -99,7 +99,6 @@ export const useCart = create<CartStore>((set, get) => ({
   },
 
   updateQuantity: async (id, size, quantity) => {
-    // Optimistic update berdasarkan ID dan Size
     set({ 
       items: get().items.map((item) => 
         item.id === id && item.size === size 
@@ -108,7 +107,7 @@ export const useCart = create<CartStore>((set, get) => ({
       ) 
     }); 
     try {
-      await updateCartItemAction(id, quantity); // Asumsi backend hanya butuh variantId (id)
+      await updateCartItemAction(id, quantity); 
     } catch (error) {
       console.error("Gagal update quantity di database", error);
       await get().fetchCart();
@@ -116,9 +115,9 @@ export const useCart = create<CartStore>((set, get) => ({
   },
 
   clearCart: async () => {
-    set({ items: [] }); // Optimistic
+    set({ items: [] }); 
     try {
-        await clearCartAction(); // Database
+        await clearCartAction(); 
     } catch (error) {
         console.error("Gagal mengosongkan keranjang di database", error);
         await get().fetchCart();
