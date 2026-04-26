@@ -67,13 +67,14 @@ export default function CheckoutPage() {
 
   const handleCalculateShipping = async (destinationCityId: string, settings: any, itemsToCalculate: any[]) => {
     if (!settings) return;
+    
     setIsLoadingShipping(true); 
     setShippingOptions([]); 
     setSelectedShipping(null);
 
     try {
-      
       const totalWeight = itemsToCalculate.reduce((total, item) => total + ((item.weight || 500) * item.quantity), 0);
+      
       const res = await fetch('/api/rajaongkir/cost', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,15 +85,17 @@ export default function CheckoutPage() {
           courier: settings.activeCouriers || 'jne,jnt,sicepat' 
         })
       });
+      
       const data = await res.json();
       if (data.success) {
          setShippingOptions(data.data);
       }
-
+      
     } catch (error) { 
       console.error(error); 
+    } finally {
       setIsLoadingShipping(false);
-    } 
+    }
   };
 
   const subtotal = checkoutItems.reduce((total, item) => total + (item.price * item.quantity), 0);

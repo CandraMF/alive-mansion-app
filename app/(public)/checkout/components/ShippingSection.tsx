@@ -32,12 +32,25 @@ export default function ShippingSection({ selectedAddress, shippingOptions, sele
         <div className="grid grid-cols-1 gap-3">
           {shippingOptions.map((opt, idx) => {
             const courierName = opt.name ? opt.name.split(' ')[0].toUpperCase() : 'KURIR';
+            
+            // 🚀 FIX: Bikin variabel pengecekan yang Unik (Nama Kurir + Layanan)
+            const isSelected = selectedShipping?.name === opt.name && selectedShipping?.service === opt.service;
+
             return (
-              <label key={idx} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 md:p-5 border cursor-pointer transition-all ${selectedShipping?.service === opt.service ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-300 bg-white'}`}>
-                <input type="radio" name="shipping" className="hidden" onChange={() => onSelectShipping(opt)} />
+              <label key={idx} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 md:p-5 border cursor-pointer transition-all ${isSelected ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-300 bg-white'}`}>
+                
+                {/* Tambahkan checked attribute agar sinkron dengan DOM */}
+                <input 
+                  type="radio" 
+                  name="shipping" 
+                  className="hidden" 
+                  checked={isSelected}
+                  onChange={() => onSelectShipping(opt)} 
+                />
+                
                 <div className="flex items-center gap-4 mb-2 sm:mb-0">
-                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${selectedShipping?.service === opt.service ? 'border-black' : 'border-gray-200'}`}>
-                    {selectedShipping?.service === opt.service && <div className="w-2 h-2 bg-black rounded-full" />}
+                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-black' : 'border-gray-200'}`}>
+                    {isSelected && <div className="w-2 h-2 bg-black rounded-full" />}
                   </div>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em]">{courierName} {opt.service || 'REG'}</p>
