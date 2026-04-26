@@ -6,8 +6,10 @@ import OrderStatusManager from './OrderStatusManager';
 
 const formatRupiah = (angka: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
 
-export default async function AdminOrderDetailPage({ params }: { params: { id: string } }) {
-  const res = await getAdminOrderDetailAction(params.id);
+export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params; 
+  
+  const res = await getAdminOrderDetailAction(id);
 
   if (!res.success || !res.data) {
     return notFound();
@@ -16,7 +18,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
   const order = res.data;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="p-6 md:p-10 max-w-7xl mx-auto font-sans space-y-8 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -93,9 +95,8 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
               <h2 className="text-[10px] font-bold uppercase tracking-widest">Customer</h2>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-bold uppercase">{order.user.name}</p>
-              <p className="text-[11px] text-gray-500">{order.user.email}</p>
-              <p className="text-[11px] text-gray-500">{order.user.phone || '-'}</p>
+              <p className="text-xs font-bold uppercase">{order.user?.name || 'Guest'}</p>
+              <p className="text-[11px] text-gray-500">{order.user?.email || '-'}</p>
             </div>
           </section>
 
