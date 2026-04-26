@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '@/hooks/useCart';
-import { createPortal } from 'react-dom'; // <--- KITA GUNAKAN PORTAL
+import { createPortal } from 'react-dom'; 
 
 export default function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -15,10 +15,28 @@ export default function CartDrawer() {
     setIsMounted(true);
   }, []);
 
-  // Kunci scroll halaman belakang saat laci terbuka
+  // 🚀 LOGIKA HARDWARE BACK BUTTON & SCROLL LOCK
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      
+      // 1. Suntikkan state palsu ke riwayat browser
+      window.history.pushState({ panel: 'cart' }, '');
+
+      // 2. Dengarkan event tombol back (popstate)
+      const handlePopState = () => {
+        setIsOpen(false);
+      };
+      window.addEventListener('popstate', handlePopState);
+
+      // 3. Cleanup saat drawer ditutup
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+        // Jika ditutup manual (klik X / Checkout), hapus state palsu agar tidak menumpuk
+        if (window.history.state?.panel === 'cart') {
+          window.history.back();
+        }
+      };
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -35,7 +53,6 @@ export default function CartDrawer() {
 
   return (
     <>
-      {/* 1. TOMBOL PEMICU (Tetap berada di dalam Navbar) */}
       <button
         onClick={() => setIsOpen(true)}
         className="hover:opacity-50 transition-opacity uppercase tracking-widest font-light text-[10px] md:text-xs"
@@ -43,22 +60,16 @@ export default function CartDrawer() {
         MY BAG {totalItems > 0 ? `(${totalItems})` : ''}
       </button>
 
-      {/* 2. PORTAL: Melempar Laci Keluar dari Navbar langsung ke <body> */}
       {createPortal(
         <>
-          {/* OVERLAY DENGAN EFEK BLUR (Animasi memudar yang lebih mulus) */}
           <div
-            className={`fixed inset-0 bg-black/20 backdrop-blur-md z-[100] transition-all duration-500 ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
-              }`}
+            className={`fixed inset-0 bg-black/20 backdrop-blur-md z-[100] transition-all duration-500 ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
             onClick={() => setIsOpen(false)}
           />
 
-          {/* PANEL DRAWER FULL HEIGHT (Menggunakan 100dvh agar aman di HP) */}
           <div
-            className={`fixed top-0 right-0 h-[100dvh] w-full md:w-[480px] bg-white z-[110] shadow-2xl transform transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'
-              }`}
+            className={`fixed top-0 right-0 h-[100dvh] w-full md:w-[480px] bg-white z-[110] shadow-2xl transform transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100">
               <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black">
                 Shopping Bag {totalItems > 0 && `(${totalItems})`}
@@ -68,7 +79,6 @@ export default function CartDrawer() {
               </button>
             </div>
 
-            {/* Isi Keranjang (Scrollable) */}
             <div className="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar">
               {cart.items.length === 0 ? (
                 <div className="h-64 flex flex-col items-center justify-center text-center gap-4">
@@ -101,11 +111,9 @@ export default function CartDrawer() {
                     ))}
                   </ul>
 
-                  {/* BAGIAN REKOMENDASI PRODUK */}
                   <div className="pt-8 border-t border-gray-100">
                     <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] mb-6 text-gray-400">You May Also Like</h3>
                     <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                      {/* Dummy Rekomendasi */}
                       {[1, 2, 3].map((i) => (
                         <div key={i} className="min-w-[120px] group cursor-pointer">
                           <div className="aspect-[3/4] bg-gray-50 mb-2 relative overflow-hidden border border-gray-100">
@@ -121,7 +129,6 @@ export default function CartDrawer() {
               )}
             </div>
 
-            {/* Footer dengan Tombol Bersampingan */}
             {cart.items.length > 0 && (
               <div className="p-8 border-t border-gray-100 bg-white">
                 <div className="flex justify-between mb-6">
@@ -130,18 +137,10 @@ export default function CartDrawer() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Link
-                    href="/cart"
-                    onClick={() => setIsOpen(false)}
-                    className="w-full py-4 border border-black text-[10px] font-bold uppercase tracking-widest text-center hover:bg-black hover:text-white transition-all"
-                  >
+                  <Link href="/cart" onClick={() => setIsOpen(false)} className="w-full py-4 border border-black text-[10px] font-bold uppercase tracking-widest text-center hover:bg-black hover:text-white transition-all">
                     View Cart
                   </Link>
-                  <Link
-                    href="/checkout"
-                    onClick={() => setIsOpen(false)}
-                    className="w-full py-4 bg-black text-white text-[10px] font-bold uppercase tracking-widest text-center hover:bg-gray-800 transition-all"
-                  >
+                  <Link href="/checkout" onClick={() => setIsOpen(false)} className="w-full py-4 bg-black text-white text-[10px] font-bold uppercase tracking-widest text-center hover:bg-gray-800 transition-all">
                     Checkout
                   </Link>
                 </div>
