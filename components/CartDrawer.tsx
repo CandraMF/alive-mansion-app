@@ -116,21 +116,6 @@ export default function CartDrawer() {
                       </li>
                     ))}
                   </ul>
-
-                  <div className="pt-8 border-t border-gray-100">
-                    <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] mb-6 text-gray-400">You May Also Like</h3>
-                    <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="min-w-[120px] group cursor-pointer">
-                          <div className="aspect-[3/4] bg-gray-50 mb-2 relative overflow-hidden border border-gray-100">
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
-                          </div>
-                          <p className="text-[8px] font-bold uppercase tracking-widest truncate">Essential Tee {i}</p>
-                          <p className="text-[8px] text-gray-500 mt-1">Rp 349.000</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
