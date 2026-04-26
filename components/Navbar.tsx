@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image'; // 🚀 Tambahkan Image
+import Image from 'next/image'; 
 import CartDrawer from '@/components/CartDrawer';
-import { User, Search, Loader2 } from 'lucide-react'; // 🚀 Tambahkan Loader2
+import { User, Search, Loader2 } from 'lucide-react'; 
 
 const formatRupiah = (angka: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
 
@@ -13,7 +13,7 @@ export default function Navbar({ data, session }: { data?: any, session?: any })
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
-  // 🚀 States Search Modal
+  // States Search Modal
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -40,40 +40,45 @@ export default function Navbar({ data, session }: { data?: any, session?: any })
     else document.body.style.overflow = 'unset';
   }, [isMenuOpen, isSearchOpen]);
 
-  // Hardware Back Button - Mobile Menu
+  // 🚀 LOGIKA BARU: Sync History & PopState Tanpa "Trap/Jebakan" Navigasi
   useEffect(() => {
-    if (isMenuOpen) {
-      window.history.pushState({ panel: 'menu' }, '');
-      const handlePopState = () => setIsMenuOpen(false);
-      window.addEventListener('popstate', handlePopState);
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-        if (window.history.state?.panel === 'menu') window.history.back();
-      };
-    }
-  }, [isMenuOpen]);
+    if (isMenuOpen || isSearchOpen) {
+      const panelType = isMenuOpen ? 'menu' : 'search';
+      window.history.pushState({ panel: panelType }, '');
 
-  // Hardware Back Button - Search Overlay
-  useEffect(() => {
-    if (isSearchOpen) {
-      window.history.pushState({ panel: 'search' }, '');
-      const handlePopState = () => setIsSearchOpen(false);
+      const handlePopState = () => {
+        setIsMenuOpen(false);
+        setIsSearchOpen(false);
+      };
+
       window.addEventListener('popstate', handlePopState);
+      
       return () => {
         window.removeEventListener('popstate', handlePopState);
-        if (window.history.state?.panel === 'search') window.history.back();
+        // 🛡️ KITA HAPUS history.back() DARI SINI AGAR TIDAK BENTROK DENGAN NEXT.JS ROUTER
       };
     } else {
-      // Bersihkan pencarian saat modal ditutup
-      setSearchQuery('');
-      setSearchResults([]);
+      // Bersihkan pencarian hanya jika modal search benar-benar tertutup
+      if (!isSearchOpen && searchQuery !== '') {
+        setSearchQuery('');
+        setSearchResults([]);
+      }
     }
-  }, [isSearchOpen]);
+  }, [isMenuOpen, isSearchOpen]);
 
-  // 🚀 EFEK DEBOUNCE UNTUK LIVE SEARCH
+  // 🚀 FUNGSI TUTUP MANUAL KHUSUS UNTUK TOMBOL "X" DAN OVERLAY BACKGROUND
+  const handleManualClose = () => {
+    if (window.history.state?.panel === 'menu' || window.history.state?.panel === 'search') {
+      window.history.back(); // Biarkan popstate yang mengubah state jadi false
+    } else {
+      setIsMenuOpen(false);
+      setIsSearchOpen(false);
+    }
+  };
+
+  // EFEK DEBOUNCE UNTUK LIVE SEARCH
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
-      // Hanya mencari jika ketikan lebih dari 1 huruf
       if (searchQuery.trim().length > 1) {
         setIsSearching(true);
         try {
@@ -90,7 +95,7 @@ export default function Navbar({ data, session }: { data?: any, session?: any })
       } else {
         setSearchResults([]);
       }
-    }, 500); // Tunggu 500ms setelah pelanggan berhenti mengetik
+    }, 500); 
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
@@ -144,12 +149,11 @@ export default function Navbar({ data, session }: { data?: any, session?: any })
       {/* 🚀 LAYAR PENCARIAN (SEARCH OVERLAY) LIVE */}
       <div className={`fixed inset-0 z-[100] bg-white backdrop-blur-md flex flex-col pt-6 md:pt-12 transition-all duration-500 ${isSearchOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-4'}`}>
         <div className="flex justify-end px-6 md:px-12 shrink-0">
-          <button onClick={() => setIsSearchOpen(false)} className="text-3xl font-light hover:opacity-50 transition-opacity">&times;</button>
+          <button onClick={handleManualClose} className="text-3xl font-light hover:opacity-50 transition-opacity">&times;</button>
         </div>
 
         <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full px-6 md:px-12 mt-4 md:mt-0">
 
-          {/* Kolom Input Search */}
           <form onSubmit={(e) => e.preventDefault()} className="w-full flex items-center border-b border-black pb-2 shrink-0">
             <input
               type="text"
@@ -164,10 +168,8 @@ export default function Navbar({ data, session }: { data?: any, session?: any })
             </div>
           </form>
 
-          {/* 🚀 HASIL PENCARIAN LIVE */}
           <div className="flex-1 overflow-y-auto custom-scrollbar mt-8 pb-12">
 
-            {/* Keadaan 1: Menunggu ketikan / Belum ada hasil */}
             {searchQuery.trim().length <= 1 && (
               <div className="flex flex-wrap gap-4 justify-center text-[10px] md:text-xs uppercase tracking-widest text-gray-500 mt-12">
                 <span>Popular:</span>
@@ -177,21 +179,19 @@ export default function Navbar({ data, session }: { data?: any, session?: any })
               </div>
             )}
 
-            {/* Keadaan 2: Ketikan sudah ada, tidak loading, tapi hasil kosong */}
             {searchQuery.trim().length > 1 && !isSearching && searchResults.length === 0 && (
               <div className="text-center text-[10px] md:text-xs uppercase tracking-widest text-gray-400 mt-12">
                 No products found for "{searchQuery}"
               </div>
             )}
 
-            {/* Keadaan 3: Menampilkan Grid Produk */}
             {searchResults.length > 0 && !isSearching && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8">
                 {searchResults.map((p) => (
                   <Link
                     href={`/shop/${p.id}`}
                     key={p.id}
-                    onClick={() => setIsSearchOpen(false)}
+                    onClick={() => setIsSearchOpen(false)} 
                     className="group flex flex-col cursor-pointer"
                   >
                     <div className="aspect-[3/4] bg-gray-50 relative overflow-hidden mb-3 border border-gray-100">
@@ -218,12 +218,12 @@ export default function Navbar({ data, session }: { data?: any, session?: any })
         </div>
       </div>
 
-      {/* DRAWER MENU MOBILE (Tetap sama) */}
-      {isMenuOpen && <div className="fixed inset-0 z-50 bg-transparent" onClick={() => setIsMenuOpen(false)} />}
+      {/* DRAWER MENU MOBILE */}
+      {isMenuOpen && <div className="fixed inset-0 z-50 bg-transparent" onClick={handleManualClose} />}
 
       <div className={`fixed top-0 left-0 h-[100dvh] w-[80vw] md:w-[400px] bg-black/70 backdrop-blur-md text-white z-[60] transform transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="px-8 py-6 flex justify-end items-center">
-          <button onClick={() => setIsMenuOpen(false)} className="text-3xl font-light hover:opacity-50 transition-opacity">&times;</button>
+          <button onClick={handleManualClose} className="text-3xl font-light hover:opacity-50 transition-opacity">&times;</button>
         </div>
 
         <div className="flex flex-col gap-4 p-8 text-md font-light tracking-wide uppercase mt-4">

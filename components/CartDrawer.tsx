@@ -15,7 +15,7 @@ export default function CartDrawer() {
     setIsMounted(true);
   }, []);
 
-  // 🚀 LOGIKA HARDWARE BACK BUTTON & SCROLL LOCK
+  // 🚀 LOGIKA BARU: Sync History & PopState Tanpa "Trap/Jebakan" Navigasi
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -29,18 +29,24 @@ export default function CartDrawer() {
       };
       window.addEventListener('popstate', handlePopState);
 
-      // 3. Cleanup saat drawer ditutup
+      // 3. Cleanup saat drawer ditutup / komponen unmount
       return () => {
         window.removeEventListener('popstate', handlePopState);
-        // Jika ditutup manual (klik X / Checkout), hapus state palsu agar tidak menumpuk
-        if (window.history.state?.panel === 'cart') {
-          window.history.back();
-        }
+        // 🛡️ KITA HAPUS history.back() DARI SINI AGAR TIDAK BENTROK DENGAN NEXT.JS ROUTER
       };
     } else {
       document.body.style.overflow = 'unset';
     }
   }, [isOpen]);
+
+  // 🚀 FUNGSI TUTUP MANUAL KHUSUS UNTUK TOMBOL "X" DAN OVERLAY BACKGROUND
+  const handleManualClose = () => {
+    if (window.history.state?.panel === 'cart') {
+      window.history.back(); // Biarkan popstate yang mengatur setIsOpen(false)
+    } else {
+      setIsOpen(false);
+    }
+  };
 
   if (!isMounted) return null;
 
@@ -64,7 +70,7 @@ export default function CartDrawer() {
         <>
           <div
             className={`fixed inset-0 bg-black/20 backdrop-blur-md z-[100] transition-all duration-500 ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
-            onClick={() => setIsOpen(false)}
+            onClick={handleManualClose} // 🚀 Gunakan handleManualClose
           />
 
           <div
@@ -74,7 +80,7 @@ export default function CartDrawer() {
               <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-black">
                 Shopping Bag {totalItems > 0 && `(${totalItems})`}
               </h2>
-              <button onClick={() => setIsOpen(false)} className="text-2xl font-light hover:opacity-50 transition-opacity">
+              <button onClick={handleManualClose} className="text-2xl font-light hover:opacity-50 transition-opacity">
                 &times;
               </button>
             </div>
@@ -137,6 +143,7 @@ export default function CartDrawer() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
+                  {/* 🚀 Saat navigasi ke halaman lain, langsung gunakan setIsOpen(false) agar tidak mengganggu Next Router */}
                   <Link href="/cart" onClick={() => setIsOpen(false)} className="w-full py-4 border border-black text-[10px] font-bold uppercase tracking-widest text-center hover:bg-black hover:text-white transition-all">
                     View Cart
                   </Link>

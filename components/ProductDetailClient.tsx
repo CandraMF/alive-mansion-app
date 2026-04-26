@@ -33,6 +33,7 @@ interface ProductDetailProps {
     description: string;
     images: ProductImage[];
     variants: Variant[];
+    weight: number;
   };
   relatedProducts: any[];
 }
@@ -102,7 +103,8 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
       price: activeVariant.price,
       image: displayImages[0]?.url || '',
       size: activeVariant.size.name,
-      color: activeVariant.color.name
+      color: activeVariant.color.name,
+      weight: product.weight, 
     });
     alert(`Added ${product.name} (${activeVariant.size.name}) to Bag`);
   };
