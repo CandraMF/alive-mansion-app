@@ -13,11 +13,13 @@ export default function MasterColorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // State untuk form
+  // Form State
   const [name, setName] = useState('');
   const [hexCodes, setHexCodes] = useState<string[]>(['#000000']);
+  
+  // 🚀 Tambahan State Edit
+  const [editId, setEditId] = useState<string | null>(null);
 
-  // Fetch data saat halaman pertama kali dimuat
   const fetchColors = async () => {
     setIsLoading(true);
     try {
@@ -37,7 +39,6 @@ export default function MasterColorPage() {
     fetchColors();
   }, []);
 
-  // --- FUNGSI MANAJEMEN FORM ---
   const addHexInput = () => setHexCodes([...hexCodes, '#ffffff']);
   const updateHex = (index: number, value: string) => {
     const newHexCodes = [...hexCodes];
@@ -48,23 +49,37 @@ export default function MasterColorPage() {
     setHexCodes(hexCodes.filter((_, i) => i !== index));
   };
 
-  // --- FUNGSI SAVE (POST KE API) ---
+  // 🚀 Fungsi Reset Form
+  const resetForm = () => {
+    setName('');
+    setHexCodes(['#000000']);
+    setEditId(null);
+  };
+
+  // 🚀 Masuk Mode Edit
+  const handleEditClick = (color: Color) => {
+    setName(color.name);
+    setHexCodes([...color.hexCodes]); // Clone array
+    setEditId(color.id);
+  };
+
+  // 🚀 Handle Save (Bisa POST atau PUT)
   const handleSave = async () => {
     if (!name.trim()) return alert("Color name is required!");
 
     setIsSaving(true);
     try {
-      const res = await fetch('/api/colors', {
-        method: 'POST',
+      const url = editId ? `/api/colors/${editId}` : '/api/colors';
+      const method = editId ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, hexCodes }),
       });
 
       if (res.ok) {
-        // Reset form jika sukses
-        setName('');
-        setHexCodes(['#000000']);
-        // Refresh tabel
+        resetForm();
         fetchColors();
       } else {
         const data = await res.json();
@@ -77,13 +92,13 @@ export default function MasterColorPage() {
     }
   };
 
-  // --- FUNGSI DELETE (DELETE KE API) ---
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this color?")) return;
 
     try {
       const res = await fetch(`/api/colors/${id}`, { method: 'DELETE' });
       if (res.ok) {
+        if (editId === id) resetForm();
         fetchColors();
       } else {
         const data = await res.json();
@@ -96,7 +111,6 @@ export default function MasterColorPage() {
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-black uppercase tracking-tight mb-1">Master Colors</h1>
         <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">
@@ -105,8 +119,7 @@ export default function MasterColorPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-
-        {/* KIRI: TABEL DAFTAR WARNA */}
+        {/* KIRI: TABEL */}
         <Card className="lg:col-span-2 shadow-sm border-gray-200">
           <CardHeader className="border-b border-gray-100 pb-4">
             <CardTitle className="text-xs font-bold uppercase tracking-widest">Active Colors</CardTitle>
@@ -137,7 +150,6 @@ export default function MasterColorPage() {
                 colors.map((color) => (
                   <TableRow key={color.id} className="hover:bg-gray-50 transition-colors">
                     <TableCell className="py-4">
-                      {/* Render Preview Bulatan Sesuai Array Hex */}
                       <div
                         className="w-6 h-6 rounded-full shadow-sm border border-gray-200"
                         style={{
@@ -151,12 +163,20 @@ export default function MasterColorPage() {
                     <TableCell className="text-[10px] text-gray-500 font-mono">
                       {color.hexCodes.join(', ')}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditClick(color)}
+                        className="text-[10px] uppercase tracking-widest text-blue-500 hover:text-blue-700"
+                      >
+                        Edit
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(color.id)}
-                        className="text-[10px] uppercase tracking-widest text-red-500 hover:text-red-700 hover:bg-red-50"
+                        className="text-[10px] uppercase tracking-widest text-red-500 hover:text-red-700"
                       >
                         Delete
                       </Button>
@@ -168,11 +188,17 @@ export default function MasterColorPage() {
           </Table>
         </Card>
 
-        {/* KANAN: FORM TAMBAH WARNA */}
+        {/* KANAN: FORM TAMBAH/EDIT */}
         <Card className="shadow-sm border-gray-200 sticky top-24">
           <CardHeader className="border-b border-gray-100 pb-4">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest">Add New Color</CardTitle>
-            <CardDescription className="text-[10px] uppercase tracking-widest mt-1">Create single or multi-tone colors.</CardDescription>
+            <CardTitle className="text-xs font-bold uppercase tracking-widest">
+              {editId ? 'Edit Color' : 'Add New Color'}
+            </CardTitle>
+            {editId && (
+              <CardDescription className="text-[10px] uppercase tracking-widest mt-1 text-blue-600 font-bold">
+                Editing mode active
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent className="pt-6 flex flex-col gap-6">
 
@@ -226,7 +252,6 @@ export default function MasterColorPage() {
               </div>
             </div>
 
-            {/* Live Preview Form */}
             <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Preview:</span>
               <div
@@ -239,13 +264,24 @@ export default function MasterColorPage() {
               />
             </div>
 
-            <Button
-              onClick={handleSave}
-              disabled={isSaving || !name.trim()}
-              className="w-full text-[10px] font-bold uppercase tracking-[0.2em] rounded-sm py-6 bg-black hover:bg-gray-800 disabled:opacity-50"
-            >
-              {isSaving ? 'SAVING...' : 'SAVE COLOR'}
-            </Button>
+            <div className="flex flex-col gap-2 mt-2">
+              <Button
+                onClick={handleSave}
+                disabled={isSaving || !name.trim()}
+                className="w-full text-[10px] font-bold uppercase tracking-[0.2em] rounded-sm py-6 bg-black hover:bg-gray-800 disabled:opacity-50"
+              >
+                {isSaving ? 'SAVING...' : (editId ? 'UPDATE COLOR' : 'SAVE COLOR')}
+              </Button>
+              {editId && (
+                <Button
+                  onClick={resetForm}
+                  variant="outline"
+                  className="w-full text-[10px] font-bold uppercase tracking-[0.2em] rounded-sm py-6 border-gray-200 hover:bg-gray-50"
+                >
+                  CANCEL EDIT
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 
