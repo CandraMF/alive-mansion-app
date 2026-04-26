@@ -23,7 +23,7 @@ export default function MasterSizePage() {
   const fetchSizes = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/sizes');
+      const res = await fetch('/api/admin/sizes');
       if (res.ok) {
         const data = await res.json();
         setSizes(data);
@@ -60,7 +60,7 @@ export default function MasterSizePage() {
 
     try {
       // Jika editId ada, gunakan method PUT, jika tidak gunakan POST
-      const url = editId ? `/api/sizes/${editId}` : '/api/sizes';
+      const url = editId ? `/api/admin/sizes/${editId}` : '/api/admin/sizes';
       const method = editId ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -87,7 +87,7 @@ export default function MasterSizePage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this size?")) return;
     try {
-      const res = await fetch(`/api/sizes/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/sizes/${id}`, { method: 'DELETE' });
       if (res.ok) {
         // Jika sedang mengedit data yang dihapus, reset formnya
         if (editId === id) resetForm();

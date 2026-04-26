@@ -23,7 +23,7 @@ export default function MasterColorPage() {
   const fetchColors = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/colors');
+      const res = await fetch('/api/admin/colors');
       if (res.ok) {
         const data = await res.json();
         setColors(data);
@@ -69,7 +69,7 @@ export default function MasterColorPage() {
 
     setIsSaving(true);
     try {
-      const url = editId ? `/api/colors/${editId}` : '/api/colors';
+      const url = editId ? `/api/admin/colors/${editId}` : '/api/admin/colors';
       const method = editId ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -96,7 +96,7 @@ export default function MasterColorPage() {
     if (!confirm("Are you sure you want to delete this color?")) return;
 
     try {
-      const res = await fetch(`/api/colors/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/colors/${id}`, { method: 'DELETE' });
       if (res.ok) {
         if (editId === id) resetForm();
         fetchColors();

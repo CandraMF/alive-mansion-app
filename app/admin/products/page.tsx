@@ -65,9 +65,9 @@ export default function AdminProductsPage() {
   // 1. Fetch Master Data
   useEffect(() => {
     Promise.all([
-      fetch('/api/categories').then(res => res.json()),
-      fetch('/api/colors').then(res => res.json()),
-      fetch('/api/sizes').then(res => res.json())
+      fetch('/api/admin/categories').then(res => res.json()),
+      fetch('/api/admin/colors').then(res => res.json()),
+      fetch('/api/admin/sizes').then(res => res.json())
     ]).then(([cats, cols, szs]) => {
       setCategories(cats);
       setMasterColors(cols);

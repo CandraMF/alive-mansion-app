@@ -1,4 +1,4 @@
-// app/api/colors/route.ts
+// app/api/admin/colors/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma'; // Pastikan path ini sesuai dengan letak prisma client Anda
 

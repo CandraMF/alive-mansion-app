@@ -70,9 +70,9 @@ export default function EditProductPage() {
       try {
         // Ambil Data Master & Detail Produk secara paralel
         const [catsRes, colsRes, szsRes, prodRes] = await Promise.all([
-          fetch('/api/categories'),
-          fetch('/api/colors'),
-          fetch('/api/sizes'),
+          fetch('/api/admin/categories'),
+          fetch('/api/admin/colors'),
+          fetch('/api/admin/sizes'),
           fetch(`/api/admin/products/${productId}`)
         ]);
 
