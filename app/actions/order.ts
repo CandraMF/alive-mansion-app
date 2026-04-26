@@ -14,35 +14,35 @@ export const createOrderAction = withAuthAction(async (userId, orderData: any) =
     const variantIds = orderData.items.map((item: any) => item.variantId).filter(Boolean);
 
     // =========================================================================
-    // 🚀 TRANSACTION START: Menjamin Data Konsisten (Stok, Harga, Voucher)
+    // 🚀 TRANSACTION START: Guarantee Data Consistency (Stock, Price, Voucher)
     // =========================================================================
     const orderResult = await prisma.$transaction(async (tx) => {
       
-      // 1. AMBIL DATA VARIAN ASLI DARI DATABASE (Anti-Hacker Manipulasi Harga)
+      // 1. FETCH ORIGINAL VARIANTS FROM DB (Anti-Hacker Price Manipulation)
       const existingVariants = await tx.variant.findMany({
         where: { id: { in: variantIds } },
         include: { product: { select: { name: true } } }
       });
 
       if (existingVariants.length !== variantIds.length) {
-        throw new Error('Some products in your cart are no longer available.');
+        throw new Error('Some products in your cart are no longer available. Please refresh your cart.');
       }
 
       let calculatedSubtotal = 0;
       const validatedItems = [];
 
-      // 2. VALIDASI STOK & HITUNG ULANG HARGA
+      // 2. STOCK VALIDATION & RE-CALCULATE PRICE
       for (const item of orderData.items) {
         const dbVariant = existingVariants.find(v => v.id === item.variantId);
         
-        if (!dbVariant) throw new Error('Produk tidak ditemukan.');
+        if (!dbVariant) throw new Error('Product not found in database.');
         
-        // 🚀 PROTEKSI STOK: Cek apakah stok cukup (bahasa inggris)
+        // 🚀 STOCK PROTECTION: Check if stock is sufficient
         if (dbVariant.stock < item.quantity) {
-          throw new Error(` for product ${dbVariant.product.name} (Variant ID: ${dbVariant.id}) is not enough. Only ${dbVariant.stock} items left.`);           
+          throw new Error(`Stock for product ${dbVariant.product.name} is not enough. Only ${dbVariant.stock} items left.`);           
         }
 
-        // 🚀 KALKULASI SERVER: Gunakan harga dari DB, bukan dari Frontend
+        // 🚀 SERVER CALCULATION: Use DB price, ignore frontend price
         calculatedSubtotal += (dbVariant.price * item.quantity);
 
         validatedItems.push({
@@ -50,7 +50,7 @@ export const createOrderAction = withAuthAction(async (userId, orderData: any) =
           variantId: dbVariant.id,
           name: dbVariant.product.name,
           sku: dbVariant.sku || 'SKU-000',
-          price: dbVariant.price, // Harga asli dari DB
+          price: dbVariant.price, // Original price from DB
           quantity: item.quantity,
           color: item.color,
           size: item.size,
@@ -58,20 +58,18 @@ export const createOrderAction = withAuthAction(async (userId, orderData: any) =
         });
       }
 
-      // 3. KALKULASI TOTAL AMOUNT (Subtotal Asli + Ongkir - Diskon + Pajak)
-      // Catatan: Idealnya ongkir & diskon dihitung ulang di server, 
-      // tapi saat ini kita percayai dulu perhitungan ongkir rajaongkir di frontend.
+      // 3. CALCULATE TOTAL AMOUNT (Real Subtotal + Shipping - Discount + Tax)
       const finalTotalAmount = calculatedSubtotal 
         + Number(orderData.shippingCost || 0) 
         + Number(orderData.taxAmount || 0) 
         - Number(orderData.discountAmount || 0);
 
-      // 4. POTONG VOUCHER (Anti Race-Condition)
+      // 4. DEDUCT VOUCHER (Anti Race-Condition)
       if (orderData.voucherCode) {
         const promo = await tx.promo.findUnique({ where: { code: orderData.voucherCode } });
         
         if (promo) {
-          // 🚀 ATOMIC UPDATE: Hanya update jika kuota masih tersedia (Mencegah Race Condition)
+          // 🚀 ATOMIC UPDATE: Only update if quota is available
           const updatedPromo = await tx.promo.updateMany({
             where: {
               id: promo.id,
@@ -100,7 +98,7 @@ export const createOrderAction = withAuthAction(async (userId, orderData: any) =
         }
       }
 
-      // 5. POTONG STOK VARIAN (Decrement)
+      // 5. DEDUCT VARIANT STOCK (Decrement)
       for (const item of validatedItems) {
         await tx.variant.update({
           where: { id: item.variantId },
@@ -108,30 +106,30 @@ export const createOrderAction = withAuthAction(async (userId, orderData: any) =
         });
       }
 
-      // 6. SIMPAN ORDER KE DATABASE
+      // 6. SAVE ORDER TO DATABASE
       return await tx.order.create({
         data: {
           userId: userId,
           addressId: orderData.addressId,
-          subtotal: calculatedSubtotal, // Menggunakan kalkulasi server
+          subtotal: calculatedSubtotal, 
           shippingCost: orderData.shippingCost,
           discountAmount: orderData.discountAmount,
           taxAmount: orderData.taxAmount,
-          totalAmount: finalTotalAmount, // Menggunakan kalkulasi server
+          totalAmount: finalTotalAmount, 
           courier: orderData.courier,
           courierService: orderData.courierService,
           shippingAddress: orderData.shippingAddress,
           voucherCode: orderData.voucherCode,
           items: { create: validatedItems }
-        }
+        },
+        include: { items: true } // 🚀 Include items so they can be accessed outside transaction
       });
     });
     // =========================================================================
     // 🚀 TRANSACTION END
     // =========================================================================
 
-    // 7. BUAT INVOICE XENDIT DI LUAR TRANSACTION
-    // (Jika Xendit error, database sudah aman dengan order PENDING)
+    // 7. CREATE XENDIT INVOICE OUTSIDE TRANSACTION
     const invoicePayload = {
       externalId: orderResult.id, 
       amount: orderResult.totalAmount,
@@ -145,10 +143,11 @@ export const createOrderAction = withAuthAction(async (userId, orderData: any) =
       successRedirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/orders/${orderResult.id}`,
       failureRedirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/cart`,
       currency: 'IDR',
-      items: orderData.items.map((item: any) => ({
+      // 🚀 Use orderResult.items validated by backend
+      items: orderResult.items.map((item: any) => ({
         name: item.name,
         quantity: item.quantity,
-        price: existingVariants.find(v => v.id === item.variantId)?.price || item.price, // Harga Asli
+        price: item.price, // Original price retrieved from the inserted DB order items
         category: 'Fashion'
       }))
     };
@@ -168,7 +167,6 @@ export const createOrderAction = withAuthAction(async (userId, orderData: any) =
 
   } catch (error: any) {
     console.error("Order Creation Error:", error);
-    // Jika error terjadi di dalam transaction, message akan ditangkap di sini dalam bahasa inggris
     return { success: false, error: error.message || 'Failed to process order.' };
   }
 });
