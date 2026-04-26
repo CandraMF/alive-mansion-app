@@ -109,7 +109,8 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
           cityId: String(item.id),
           cityName: finalCityName,
           provinceId: String(newSelections[0].id),
-          provinceName: newSelections[0].name
+          provinceName: newSelections[0].name,
+          postalCode: item.postalCode || '' // 🚀 Update mapping key
         }));
         setIsOpen(false);
       }
@@ -124,7 +125,9 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
             {newAddress.cityId ? (
               <>
                 <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600">Selected Destination</span>
-                <span className="text-gray-900 font-medium capitalize leading-tight text-xs">{newAddress.cityName}, {newAddress.provinceName}</span>
+                <span className="text-gray-900 font-medium capitalize leading-tight text-xs">
+                  {newAddress.cityName}, {newAddress.provinceName} {newAddress.postalCode && newAddress.postalCode !== '0' ? `(${newAddress.postalCode})` : ''}
+                </span>
               </>
             ) : (
               <span className="text-gray-400 text-xs uppercase tracking-widest font-bold text-[9px]">Select Province, City, District...</span>
@@ -170,7 +173,9 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
                 <ul className="flex flex-col">
                   {filteredOptions.map((opt) => (
                     <li key={opt.id} onClick={() => handleSelect(opt)} className="px-3 py-2.5 hover:bg-gray-50 border-b border-gray-50 last:border-0 cursor-pointer flex justify-between items-center group transition-colors">
-                      <span className="text-xs font-medium text-gray-700 group-hover:text-black uppercase">{opt.name}</span>
+                      <span className="text-xs font-medium text-gray-700 group-hover:text-black uppercase">
+                        {opt.name} {opt.postalCode && opt.postalCode !== '0' && <span className="text-[10px] text-gray-400 normal-case ml-1 tracking-widest">({opt.postalCode})</span>}
+                      </span>
                       <ChevronRight className="w-3.5 h-3.5 text-gray-200 group-hover:text-black opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0" />
                     </li>
                   ))}
@@ -252,7 +257,7 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
             <p className="text-[11px] text-gray-600 mb-2">{selectedAddress.phone}</p>
             <p className="text-[11px] text-gray-500 leading-relaxed">
               {selectedAddress.street}<br />
-              {selectedAddress.cityName}, {selectedAddress.provinceName} {selectedAddress.postalCode}
+              {selectedAddress.cityName}, {selectedAddress.provinceName} {selectedAddress.postalCode && selectedAddress.postalCode !== '0' ? selectedAddress.postalCode : ''}
             </p>
           </div>
         )}
@@ -283,10 +288,10 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
 
                   <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Full Street Address</label><textarea required rows={3} value={newAddress.street} onChange={e => setNewAddress({ ...newAddress, street: e.target.value })} className="w-full p-3 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-sm resize-none" placeholder="House number, block, landmarks..." /></div>
 
-                  <div className="grid grid-cols-2 gap-4 items-end">
-                    <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Postal Code</label><input type="text" required value={newAddress.postalCode} onChange={e => setNewAddress({ ...newAddress, postalCode: e.target.value })} className="w-full h-10 px-3 border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-black text-sm" /></div>
-                    <label className="flex items-center gap-2 cursor-pointer pb-2"><input type="checkbox" checked={newAddress.isDefault} onChange={e => setNewAddress({ ...newAddress, isDefault: e.target.checked })} className="w-4 h-4 accent-black" /><span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Set as Default</span></label>
-                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer pt-2">
+                    <input type="checkbox" checked={newAddress.isDefault} onChange={e => setNewAddress({ ...newAddress, isDefault: e.target.checked })} className="w-4 h-4 accent-black" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Set as Default</span>
+                  </label>
                 </form>
               ) : (
                 <div className="space-y-4">
@@ -301,7 +306,7 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
                         <button type="button" onClick={(e) => { e.stopPropagation(); handleEdit(addr); }} className="text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:underline">Edit</button>
                       </div>
                       <p className="text-[11px] text-gray-600 mb-2">{addr.phone}</p>
-                      <p className="text-[10px] text-gray-500 leading-relaxed">{addr.street}<br />{addr.cityName}, {addr.provinceName} {addr.postalCode}</p>
+                      <p className="text-[10px] text-gray-500 leading-relaxed">{addr.street}<br />{addr.cityName}, {addr.provinceName} {addr.postalCode && addr.postalCode !== '0' ? addr.postalCode : ''}</p>
                     </div>
                   ))}
                 </div>

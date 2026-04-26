@@ -127,7 +127,14 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
       setSearchQuery('');
       if (step < 3) { setStep(step + 1); fetchOptions(step + 1, item.id); }
       else {
-        setNewAddress(prev => ({ ...prev, cityId: String(item.id), cityName: `${newSelections[3].name}, ${newSelections[2].name}, ${newSelections[1].name}`, provinceId: String(newSelections[0].id), provinceName: newSelections[0].name }));
+        setNewAddress(prev => ({ 
+          ...prev, 
+          cityId: String(item.id), 
+          cityName: `${newSelections[3].name}, ${newSelections[2].name}, ${newSelections[1].name}`, 
+          provinceId: String(newSelections[0].id), 
+          provinceName: newSelections[0].name,
+          postalCode: item.postalCode || '' 
+        }));
         setIsOpen(false);
       }
     };
@@ -136,7 +143,13 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
       <div className="relative w-full" ref={pickerRef}>
         <div onClick={() => { setIsOpen(true); if (step === 0) fetchOptions(0); }} className="w-full min-h-[40px] px-3 py-2.5 border border-gray-200 bg-gray-50 text-sm cursor-pointer flex items-center justify-between hover:border-black transition-colors">
           <div className="flex flex-col gap-0.5">
-            {newAddress.cityId ? <span className="text-gray-900 font-medium text-xs">{newAddress.cityName}, {newAddress.provinceName}</span> : <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Select Location...</span>}
+            {newAddress.cityId ? (
+              <span className="text-gray-900 font-medium text-xs">
+                {newAddress.cityName}, {newAddress.provinceName} {newAddress.postalCode && newAddress.postalCode !== '0' ? `(${newAddress.postalCode})` : ''}
+              </span>
+            ) : (
+              <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Select Location...</span>
+            )}
           </div>
           <ChevronDown className="w-4 h-4 text-gray-400" />
         </div>
@@ -150,7 +163,9 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
             <div className="p-2"><input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-8 px-3 bg-gray-50 border-none outline-none text-xs" /></div>
             <div className="max-h-48 overflow-y-auto">
               {isFetching ? <div className="p-4 text-center"><Loader2 className="w-4 h-4 animate-spin mx-auto" /></div> : options.filter(o => o.name.toLowerCase().includes(searchQuery.toLowerCase())).map(o => (
-                <div key={o.id} onClick={() => handleSelect(o)} className="px-3 py-2 text-xs hover:bg-gray-50 cursor-pointer uppercase">{o.name}</div>
+                <div key={o.id} onClick={() => handleSelect(o)} className="px-3 py-2 text-xs hover:bg-gray-50 cursor-pointer uppercase flex items-center justify-between">
+                  <span>{o.name} {o.postalCode && o.postalCode !== '0' && <span className="text-[10px] text-gray-400 ml-1 tracking-widest normal-case">({o.postalCode})</span>}</span>
+                </div>
               ))}
             </div>
           </div>
@@ -232,7 +247,7 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
                   <div className="flex items-center gap-2">{addr.label?.toLowerCase().includes('office') ? <Briefcase className="w-3 h-3" /> : <Home className="w-3 h-3" />}<span className="text-[10px] font-bold uppercase tracking-widest">{addr.label || 'Home'}</span></div>
                   {addr.isDefault && <span className="bg-black text-white text-[7px] font-bold uppercase px-2 py-0.5 tracking-widest">Default</span>}
                 </div>
-                <div className="space-y-1 mb-6 text-[10px]"><p className="font-bold uppercase">{addr.recipientName}</p><p className="text-gray-500">{addr.phone}</p><p className="text-gray-400 leading-relaxed pt-2 line-clamp-2">{addr.street}, {addr.cityName}, {addr.provinceName} {addr.postalCode}</p></div>
+                <div className="space-y-1 mb-6 text-[10px]"><p className="font-bold uppercase">{addr.recipientName}</p><p className="text-gray-500">{addr.phone}</p><p className="text-gray-400 leading-relaxed pt-2 line-clamp-2">{addr.street}, {addr.cityName}, {addr.provinceName} {addr.postalCode && addr.postalCode !== '0' ? addr.postalCode : ''}</p></div>
                 <div className="pt-4 border-t border-gray-50 flex justify-between"><button onClick={() => handleEdit(addr)} className="text-[9px] font-bold uppercase text-gray-400 hover:text-black">Edit</button>{!addr.isDefault && <button onClick={() => handleDelete(addr.id)} className="text-[9px] font-bold uppercase text-red-400 hover:text-red-600 flex items-center gap-1"><Trash2 className="w-3 h-3" /> Remove</button>}</div>
               </div>
             ))}
@@ -252,10 +267,10 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
               <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Phone</label><input type="tel" required value={newAddress.phone} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} className="w-full h-10 px-3 bg-gray-50 border-none outline-none text-xs" /></div>
               <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Location</label><LocationPicker /></div>
               <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Street Address</label><textarea required rows={3} value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-3 bg-gray-50 border-none outline-none text-xs resize-none" /></div>
-              <div className="grid grid-cols-2 gap-4 items-center">
-                <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Postal Code</label><input type="text" required value={newAddress.postalCode} onChange={e => setNewAddress({...newAddress, postalCode: e.target.value})} className="w-full h-10 px-3 bg-gray-50 border-none outline-none text-xs" /></div>
-                <label className="flex items-center gap-2 cursor-pointer pt-4"><input type="checkbox" checked={newAddress.isDefault} onChange={e => setNewAddress({...newAddress, isDefault: e.target.checked})} className="accent-black" /><span className="text-[9px] font-bold uppercase text-gray-600">Default</span></label>
-              </div>
+              <label className="flex items-center gap-2 cursor-pointer pt-2">
+                <input type="checkbox" checked={newAddress.isDefault} onChange={e => setNewAddress({...newAddress, isDefault: e.target.checked})} className="accent-black w-4 h-4" />
+                <span className="text-[9px] font-bold uppercase text-gray-600">Set as Default Address</span>
+              </label>
             </div>
             <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3"><button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 text-[10px] font-bold uppercase text-gray-400">Cancel</button><button type="submit" disabled={isSaving} className="bg-black text-white px-8 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all">{isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}</button></div>
           </form>

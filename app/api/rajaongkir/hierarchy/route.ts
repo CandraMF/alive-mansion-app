@@ -59,10 +59,11 @@ export async function GET(request: Request) {
 
     const results = data.data || [];
     
-    // 🚀 ROBUST MAPPER: Safely captures both modern (id/name) and legacy (province_id/province) formats
+    // 🚀 MAPPER: Tambahkan zip_code / postal_code
     const formattedData = results.map((item: any) => ({ 
       id: String(item.id || item.province_id || item.city_id || item.subdistrict_id || ''), 
-      name: item.name || item.province || item.city_name || item.subdistrict_name || 'Unknown Location'
+      name: item.name || item.province || item.city_name || item.subdistrict_name || 'Unknown Location',
+      postalCode: String(item.zip_code || item.postal_code || '')
     }));
 
     return NextResponse.json({ success: true, data: formattedData }, { status: 200 });
