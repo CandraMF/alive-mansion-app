@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -13,7 +12,8 @@ export async function GET(
       where: { id },
       include: {
         variants: {
-          include: { color: true } 
+          where: { isArchived: false }, // 🚀 JANGAN tampilkan varian yang sudah di-archive
+          include: { color: true, size: true }
         },
         images: {
           orderBy: { position: 'asc' }
@@ -22,16 +22,15 @@ export async function GET(
     });
 
     if (!product) {
-      return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
+      return NextResponse.json({ error: 'Product not found.' }, { status: 404 });
     }
 
     return NextResponse.json(product);
   } catch (error) {
     console.error('Error fetching product detail:', error);
-    return NextResponse.json({ error: 'Gagal mengambil detail produk' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch product details.' }, { status: 500 });
   }
 }
-
 
 export async function PUT(
   request: Request,
@@ -44,14 +43,13 @@ export async function PUT(
 
     if (!name || !variants || variants.length === 0 || !images || images.length === 0) {
       return NextResponse.json(
-        { error: 'Nama, varian (stok & harga), dan gambar wajib diisi.' },
+        { error: 'Name, variants (stock & price), and images are required.' },
         { status: 400 }
       );
     }
 
     const updatedProduct = await prisma.$transaction(async (tx) => {
-
-
+      // 1. Update Product Induk
       const prod = await tx.product.update({
         where: { id },
         data: {
@@ -63,7 +61,7 @@ export async function PUT(
         }
       });
 
-
+      // 2. Gambar aman untuk di-Hard Delete lalu Create ulang karena tidak terikat nota pesanan
       await tx.productImage.deleteMany({ where: { productId: id } });
       await tx.productImage.createMany({
         data: images.map((img: any) => ({
@@ -75,48 +73,83 @@ export async function PUT(
         }))
       });
 
+      // 3. 🚀 UPSERT & ARCHIVE VARIANTS (ANTI MENGHILANGKAN DATA NOTA)
+      // Ambil semua ID varian yang dikirim dari Frontend (yang masih dipertahankan Admin)
+      const incomingVariantIds = variants.map((v: any) => v.id).filter(Boolean);
 
-      await tx.variant.deleteMany({ where: { productId: id } });
-      await tx.variant.createMany({
-        data: variants.map((v: any) => {
-          const colorCode = v.colorId ? v.colorId.slice(-5).toUpperCase() : 'NOCL';
-          const sizeCode = v.sizeId ? v.sizeId.slice(-5).toUpperCase() : 'NOSZ';
-          return {
-            productId: id,
-            colorId: v.colorId,
-            sizeId: v.sizeId,
-            stock: parseInt(v.stock, 10) || 0,
-            price: parseInt(v.price, 10) || 0,
-            isMain: v.isMain || false,
-            sku: `${name.replace(/\s+/g, '-').toUpperCase()}-${colorCode}-${sizeCode}`
-          };
-        })
+      // A. Archive varian lama yang TIDAK ADA di list kiriman Admin
+      await tx.variant.updateMany({
+        where: {
+          productId: id,
+          id: { notIn: incomingVariantIds }
+        },
+        data: { isArchived: true } // Soft delete
       });
+
+      // B. Update varian yang sudah ada, atau Buat yang baru
+      for (const v of variants) {
+        const colorCode = v.colorId ? v.colorId.slice(-5).toUpperCase() : 'NOCL';
+        const sizeCode = v.sizeId ? v.sizeId.slice(-5).toUpperCase() : 'NOSZ';
+        const sku = `${name.replace(/\s+/g, '-').toUpperCase()}-${colorCode}-${sizeCode}`;
+
+        if (v.id) {
+          // Jika ID ada, update variannya
+          await tx.variant.update({
+            where: { id: v.id },
+            data: {
+              colorId: v.colorId,
+              sizeId: v.sizeId,
+              stock: parseInt(v.stock, 10) || 0,
+              price: parseInt(v.price, 10) || 0,
+              isMain: v.isMain || false,
+              sku: sku,
+              isArchived: false // Pastikan tidak ter-archive jika Admin memakainya lagi
+            }
+          });
+        } else {
+          // Jika tidak ada ID (Varian Baru Ditambahkan Admin), buat baru
+          await tx.variant.create({
+            data: {
+              productId: id,
+              colorId: v.colorId,
+              sizeId: v.sizeId,
+              stock: parseInt(v.stock, 10) || 0,
+              price: parseInt(v.price, 10) || 0,
+              isMain: v.isMain || false,
+              sku: sku
+            }
+          });
+        }
+      }
 
       return prod;
     });
 
-    return NextResponse.json({ success: true, data: updatedProduct }, { status: 200 });
+    return NextResponse.json({ success: true, data: updatedProduct, message: 'Product updated successfully.' }, { status: 200 });
 
   } catch (error) {
     console.error('Error updating product:', error);
-    return NextResponse.json({ error: 'Gagal memperbarui produk' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to update product.' }, { status: 500 });
   }
 }
 
-
+// 🚀 SOFT DELETE PRODUCT
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    await prisma.product.delete({
-      where: { id }
+
+    // Jangan hapus, cukup set status jadi ARCHIVED
+    await prisma.product.update({
+      where: { id },
+      data: { status: 'ARCHIVED' }
     });
-    return NextResponse.json({ success: true }, { status: 200 });
+
+    return NextResponse.json({ success: true, message: 'Product archived successfully.' }, { status: 200 });
   } catch (error) {
     console.error('Error deleting product:', error);
-    return NextResponse.json({ error: 'Gagal menghapus produk' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to archive product.' }, { status: 500 });
   }
 }

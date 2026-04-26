@@ -12,20 +12,16 @@ export async function GET(request: Request) {
     const status = searchParams.get('status') || 'ALL';
     const sort = searchParams.get('sort') || 'NEWEST';
 
-    // A. BENTUK KONDISI FILTER (WHERE CLAUSE)
     const where: any = {};
 
-    // Filter Pencarian
     if (search) {
       where.name = { contains: search, mode: 'insensitive' };
     }
 
-    // Filter Status
     if (status !== 'ALL') {
       where.status = status;
     }
 
-    // Filter Kategori Rekursif (Ambil Parent beserta semua Child-nya)
     if (category !== 'ALL') {
       const allCategories = await prisma.category.findMany();
       const getChildCategoryIds = (parentId: string): string[] => {
@@ -39,17 +35,11 @@ export async function GET(request: Request) {
       where.categoryId = { in: relatedCategoryIds };
     }
 
-    // B. BENTUK KONDISI SORTING (ORDER BY)
-    let orderBy: any = { createdAt: 'desc' }; // Default NEWEST
+    let orderBy: any = { createdAt: 'desc' };
     if (sort === 'OLDEST') orderBy = { createdAt: 'asc' };
     if (sort === 'NAME_ASC') orderBy = { name: 'asc' };
     if (sort === 'NAME_DESC') orderBy = { name: 'desc' };
-    /* Catatan: Sorting berdasarkan 'Harga Termurah' secara native di Prisma 
-       memerlukan skema caching 'minPrice' di tabel Product. Untuk sementara,
-       kita gunakan sorting Tanggal dan Nama.
-    */
 
-    // C. EKSEKUSI QUERY DENGAN PAGINATION
     const skip = (page - 1) * limit;
 
     const [products, totalItems] = await Promise.all([
@@ -59,6 +49,7 @@ export async function GET(request: Request) {
           category: { include: { parent: true } },
           images: { orderBy: { position: 'asc' } },
           variants: {
+            where: { isArchived: false }, // 🚀 FILTER: Jangan ambil varian yang sudah di-archive
             include: {
               color: true,
               size: true
@@ -66,13 +57,12 @@ export async function GET(request: Request) {
           },
         },
         orderBy,
-        skip,   // Lewati data halaman sebelumnya
-        take: limit, // Ambil 'n' data saja
+        skip,
+        take: limit,
       }),
-      prisma.product.count({ where }) // Hitung total data yang cocok untuk meta pagination
+      prisma.product.count({ where })
     ]);
 
-    // Kembalikan Data beserta Meta Data untuk Frontend
     return NextResponse.json({
       data: products,
       meta: {
@@ -85,10 +75,11 @@ export async function GET(request: Request) {
 
   } catch (error) {
     console.error('Error fetching products:', error);
-    return NextResponse.json({ error: 'Gagal mengambil data produk' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch products.' }, { status: 500 });
   }
 }
 
+// 2. POST: CREATE PRODUCT
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -104,7 +95,7 @@ export async function POST(request: Request) {
 
     if (!name || !variants || variants.length === 0 || !images || images.length === 0) {
       return NextResponse.json(
-        { error: 'Nama, varian (stok & harga), dan gambar wajib diisi.' },
+        { error: 'Name, variants (stock & price), and images are required.' },
         { status: 400 }
       );
     }
@@ -148,12 +139,12 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ success: true, data: product }, { status: 201 });
+    return NextResponse.json({ success: true, data: product, message: 'Product created successfully.' }, { status: 201 });
 
   } catch (error) {
     console.error('Error creating product:', error);
     return NextResponse.json(
-      { error: 'Gagal membuat produk. Periksa log server.' },
+      { error: 'Failed to create product. Please check the server logs.' },
       { status: 500 }
     );
   }

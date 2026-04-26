@@ -97,6 +97,7 @@ model Variant {
   color   Color  @relation(fields: [colorId], references: [id], onDelete: Restrict)
 
   isMain Boolean @default(false)
+  isArchived Boolean @default(false)
 
   stock Int     @default(0)
   price Int     @default(0)
