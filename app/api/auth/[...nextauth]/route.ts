@@ -6,21 +6,17 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
 
 export const authOptions: NextAuthOptions = {
-  // 1. Hubungkan NextAuth dengan Prisma
   adapter: PrismaAdapter(prisma) as any,
 
-  // 2. Gunakan strategi JWT untuk performa maksimal (tanpa query database terus-menerus)
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 Hari
   },
 
-  // 3. Arahkan halaman login ke halaman custom kita
   pages: {
-    signIn: '/register', // Karena kita menggabungkan Login & Register di halaman ini
+    signIn: '/register',
   },
 
-  // 4. Konfigurasi Provider (Metode Login)
   providers: [
     // --- A. GOOGLE LOGIN ---
     GoogleProvider({
@@ -32,7 +28,7 @@ export const authOptions: NextAuthOptions = {
           name: profile.name,
           email: profile.email,
           image: profile.picture,
-          role: 'CUSTOMER', // Pendaftar via Google otomatis jadi Customer
+          role: 'CUSTOMER',
           permissions: [],
         }
       }
@@ -50,7 +46,6 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email dan password wajib diisi");
         }
 
-        // Cari user di database
         const user = await prisma.user.findUnique({
           where: { email: credentials.email }
         });
@@ -59,14 +54,17 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email tidak terdaftar atau login menggunakan Google");
         }
 
-        // Verifikasi Password
+        // 🚀 PROTEKSI 1: Tolak jika akun sedang di-suspend (Email/Password)
+        if (user.isSuspended) {
+          throw new Error("Akun Anda telah ditangguhkan. Silakan hubungi admin.");
+        }
+
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
         if (!isPasswordValid) {
           throw new Error("Password salah");
         }
 
-        // Jika sukses, kembalikan data user ke dalam token
         return {
           id: user.id,
           name: user.name,
@@ -78,16 +76,49 @@ export const authOptions: NextAuthOptions = {
     })
   ],
 
-  // 5. Callbacks: Menyuntikkan Role & Permission ke Sesi Frontend
   callbacks: {
+    // 🚀 PROTEKSI 2: Tolak jika akun di-suspend (Berlaku juga untuk Google Login)
+    async signIn({ user }) {
+      if (user.email) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: user.email },
+          select: { isSuspended: true }
+        });
+
+        if (dbUser?.isSuspended) {
+          // Akan melempar error kembali ke halaman login (URL: /register?error=...)
+          throw new Error("Akun Anda telah ditangguhkan. Silakan hubungi admin.");
+        }
+      }
+      return true;
+    },
+
     async jwt({ token, user }) {
+      // 1. Saat pertama kali login
       if (user) {
         token.role = (user as any).role;
         token.permissions = (user as any).permissions;
       }
+
+      if (token.sub) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { isSuspended: true }
+        });
+
+        if (dbUser?.isSuspended) {
+          return {};
+        }
+      }
+
       return token;
     },
+
     async session({ session, token }) {
+      if (!token || Object.keys(token).length === 0) {
+        return { ...session, user: undefined as any };
+      }
+
       if (token && session.user) {
         (session.user as any).role = token.role;
         (session.user as any).permissions = token.permissions;
@@ -97,7 +128,6 @@ export const authOptions: NextAuthOptions = {
     }
   },
 
-  // Kunci Rahasia
   secret: process.env.NEXTAUTH_SECRET,
 };
 
