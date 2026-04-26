@@ -39,7 +39,7 @@ export async function addAddressAction(data: any) {
     const newAddress = await prisma.address.create({
       data: {
         userId,
-        label: data.label || 'Rumah',
+        label: data.label || 'Home',
         recipientName: data.recipientName,
         phone: data.phone,
         street: data.street,
@@ -52,10 +52,14 @@ export async function addAddressAction(data: any) {
       }
     });
 
+    // 🚀 Refresh cache untuk kedua halaman yang menggunakan alamat
+    revalidatePath('/checkout');
+    revalidatePath('/account');
+
     return { success: true, address: newAddress };
   } catch (error) {
     console.error("ADD ADDRESS ERROR:", error);
-    return { error: "Gagal menyimpan alamat." };
+    return { error: "Failed to save address." };
   }
 }
 
@@ -64,11 +68,20 @@ export async function deleteAddressAction(id: string) {
   const userId = await getUserId();
   if (!userId) return { error: "Unauthorized" };
 
-  await prisma.address.delete({
-    where: { id, userId }
-  });
+  try {
+    await prisma.address.delete({
+      where: { id, userId }
+    });
 
-  return { success: true };
+    // 🚀 Refresh cache
+    revalidatePath('/checkout');
+    revalidatePath('/account');
+
+    return { success: true };
+  } catch (error) {
+    console.error("DELETE ADDRESS ERROR:", error);
+    return { error: "Failed to delete address." };
+  }
 }
 
 // 4. Edit Alamat
@@ -88,7 +101,7 @@ export async function editAddressAction(id: string, data: any) {
     const updatedAddress = await prisma.address.update({
       where: { id, userId },
       data: {
-        label: data.label || 'Rumah',
+        label: data.label || 'Home',
         recipientName: data.recipientName,
         phone: data.phone,
         street: data.street,
@@ -101,10 +114,13 @@ export async function editAddressAction(id: string, data: any) {
       }
     });
 
+    // 🚀 Refresh cache
     revalidatePath('/checkout');
+    revalidatePath('/account');
+    
     return { success: true, address: updatedAddress };
   } catch (error) {
     console.error("EDIT ADDRESS ERROR:", error);
-    return { error: "Gagal mengubah alamat." };
+    return { error: "Failed to update address." };
   }
 }

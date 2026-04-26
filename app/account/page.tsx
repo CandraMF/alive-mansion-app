@@ -21,6 +21,9 @@ export default async function AccountPage() {
       orders: {
         orderBy: { createdAt: 'desc' },
         include: { items: true } 
+      }, 
+      addresses: {
+        orderBy: { isDefault: 'desc' }
       }
     }
   });
@@ -79,7 +82,7 @@ export default async function AccountPage() {
 
           {/* MAIN CONTENT AREA: TABS & FILTERS */}
           <div className="lg:col-span-3">
-            <AccountTabs orders={user.orders} vouchers={user.vouchers} />
+            <AccountTabs orders={user.orders} vouchers={user.vouchers} addresses={user.addresses} />
           </div>
         </div>
       </div>

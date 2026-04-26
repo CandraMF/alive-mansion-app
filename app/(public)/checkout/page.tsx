@@ -67,34 +67,32 @@ export default function CheckoutPage() {
 
   const handleCalculateShipping = async (destinationCityId: string, settings: any, itemsToCalculate: any[]) => {
     if (!settings) return;
-    setIsLoadingShipping(true);
-    setShippingOptions([]);
+    setIsLoadingShipping(true); 
+    setShippingOptions([]); 
     setSelectedShipping(null);
 
     try {
-      setTimeout(() => {
-        setShippingOptions([
-          {
-            service: "TEST-REG",
-            description: "Temporary Service (API Limit)",
-            cost: 15000,
-            etd: "2-3",
-            name: "SYSTEM MOCK"
-          },
-          {
-            service: "TEST-YES",
-            description: "Next Day (API Limit)",
-            cost: 25000,
-            etd: "1-1",
-            name: "SYSTEM MOCK"
-          }
-        ]);
-        setIsLoadingShipping(false);
-      }, 600);
-    } catch (error) {
-      console.error(error);
+      
+      const totalWeight = itemsToCalculate.reduce((total, item) => total + ((item.weight || 500) * item.quantity), 0);
+      const res = await fetch('/api/rajaongkir/cost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          originCityId: settings.originCityId || '152', 
+          destinationCityId, 
+          weightInGrams: totalWeight, 
+          courier: settings.activeCouriers || 'jne,jnt,sicepat' 
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+         setShippingOptions(data.data);
+      }
+
+    } catch (error) { 
+      console.error(error); 
       setIsLoadingShipping(false);
-    }
+    } 
   };
 
   const subtotal = checkoutItems.reduce((total, item) => total + (item.price * item.quantity), 0);
