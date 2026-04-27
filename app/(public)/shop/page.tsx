@@ -91,7 +91,7 @@ export default async function ShopPage({
   });
 
   return (
-    <div className="max-w-[1600px] mx-auto px-6 animate-in fade-in duration-500 ">
+    <div className="max-w-[1600px] mx-auto px-6 animate-in fade-in duration-500 py-10">
       
       {/* 🚀 Render the new Client-side Filter UI */}
       <ShopFilterUI 

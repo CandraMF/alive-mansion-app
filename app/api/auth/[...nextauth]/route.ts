@@ -29,6 +29,7 @@ export const authOptions: NextAuthOptions = {
           image: profile.picture,
           role: 'CUSTOMER',
           permissions: [],
+          emailVerified: new Date(),
         }
       }
     }),
@@ -68,6 +69,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           role: user.role,
           permissions: user.permissions,
+          emailVerified: user.emailVerified,
         };
       }
     })
@@ -78,10 +80,11 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = (user as any).role;
         token.permissions = (user as any).permissions;
-        token.lastChecked = Date.now(); // Simpan waktu pengecekan pertama
+        token.emailVerified = (user as any).emailVerified;
+        token.lastChecked = Date.now();
       }
 
-      // 🚀 LOGIKA OPTIMASI: Hanya cek DB jika pengecekan terakhir > 2 menit yang lalu
+
       const TWO_MINUTES = 2 * 60 * 1000;
       const now = Date.now();
 
@@ -89,11 +92,12 @@ export const authOptions: NextAuthOptions = {
         if (token.sub) {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.sub },
-            select: { isSuspended: true }
+            select: { isSuspended: true, emailVerified: true }
           });
 
           token.isSuspended = dbUser?.isSuspended || false;
-          token.lastChecked = now; // Update waktu pengecekan terakhir
+          token.emailVerified = dbUser?.emailVerified;
+          token.lastChecked = now;
         }
       }
 
@@ -108,6 +112,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.sub;
         (session.user as any).role = token.role;
         (session.user as any).permissions = token.permissions;
+        (session.user as any).emailVerified = token.emailVerified;
         (session as any).isSuspended = false;
       }
       return session;

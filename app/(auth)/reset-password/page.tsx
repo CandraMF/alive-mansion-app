@@ -3,10 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -18,23 +15,25 @@ function ResetPasswordForm() {
   const [error, setError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // 1. If there's no token in the URL, block the user
+  // 1. Jika URL tidak memiliki token atau token salah
   if (!token) {
     return (
-      <div className="text-center animate-in fade-in zoom-in duration-300">
-        <AlertCircle className="w-12 h-12 mx-auto text-red-500 mb-4" />
-        <h1 className="text-2xl font-serif italic text-gray-900 mb-2">Invalid Link</h1>
-        <p className="text-xs text-gray-500 leading-relaxed mb-6">
-          This password reset link is missing or invalid.
+      <div className="text-center animate-in fade-in duration-700">
+        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-8 border border-red-100">
+          <AlertCircle className="w-8 h-8 text-red-600" />
+        </div>
+        <h1 className="text-3xl font-serif italic text-black mb-4 uppercase tracking-widest">Invalid Link</h1>
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-500 leading-relaxed mb-8">
+          This password reset link is missing or has expired.
         </p>
-        <Link href="/forgot-password" className="text-[10px] font-bold uppercase tracking-widest text-black hover:underline">
+        <Link href="/forgot-password" className="inline-flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest text-black hover:opacity-50 transition-colors border-b border-black pb-1">
           Request New Link
         </Link>
       </div>
     );
   }
 
-  // 2. Form submission
+  // 2. Form Submission (Kirim password baru ke API)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -72,90 +71,86 @@ function ResetPasswordForm() {
     }
   };
 
-  // 3. Success state UI
+  // 3. UI Status Sukses
   if (isSuccess) {
     return (
-      <div className="text-center animate-in fade-in zoom-in duration-300">
-        <CheckCircle2 className="w-12 h-12 mx-auto text-green-500 mb-4" />
-        <h1 className="text-2xl font-serif italic text-gray-900 mb-2">Password Updated</h1>
-        <p className="text-xs text-gray-500 leading-relaxed mb-8">
-          Your password has been successfully reset. You can now log in with your new password.
+      <div className="text-center animate-in fade-in duration-700">
+        <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8 border border-green-100">
+          <CheckCircle2 className="w-8 h-8 text-green-600" />
+        </div>
+        <h1 className="text-3xl font-serif italic text-black mb-4 uppercase tracking-widest">Password Updated</h1>
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-500 leading-relaxed mb-12">
+          Your password has been successfully reset. <br/> You can now log in with your new password.
         </p>
-        <Link href="/register" className="block">
-          <Button className="w-full h-11 bg-black hover:bg-gray-900 text-white font-bold uppercase tracking-widest text-[10px] transition-all">
-            Go to Login
-          </Button>
+        <Link href="/register" className="w-full h-14 bg-black text-white font-bold uppercase tracking-[0.2em] text-[10px] transition-all hover:bg-neutral-800 flex items-center justify-center">
+          Go to Login
         </Link>
       </div>
     );
   }
 
-  // 4. Default Reset Form UI
+  // 4. UI Default Reset Form
   return (
-    <>
-      <div className="mb-8 text-center lg:text-left">
-        <h1 className="text-2xl font-serif italic text-gray-900 mb-2">Create New Password</h1>
-        <p className="text-xs text-gray-500 leading-relaxed">
+    <div className="animate-in fade-in duration-700 w-full">
+      <div className="mb-10 text-center">
+        <h1 className="text-3xl font-serif italic text-black mb-4 uppercase tracking-widest">Create New Password</h1>
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 leading-loose">
           Please enter your new password below. Make sure it's at least 6 characters.
         </p>
       </div>
 
       {error && (
-        <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-[11px] font-medium text-red-700">
+        <div className="mb-8 p-4 bg-red-50 border border-red-100 text-[10px] font-bold uppercase tracking-widest text-red-600 text-center">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1.5">
-          <Label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">New Password</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white text-sm"
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-3">
+          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-black">New Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            className="w-full h-12 bg-gray-50 border border-gray-200 px-4 text-xs focus:outline-none focus:border-black focus:bg-white transition-colors"
+          />
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Confirm Password</Label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              type="password"
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={6}
-              className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white text-sm"
-            />
-          </div>
+        <div className="space-y-3">
+          <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-black">Confirm Password</label>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            minLength={6}
+            className="w-full h-12 bg-gray-50 border border-gray-200 px-4 text-xs focus:outline-none focus:border-black focus:bg-white transition-colors"
+          />
         </div>
 
-        <Button
+        <button
           type="submit"
-          disabled={isLoading}
-          className="w-full h-11 mt-4 bg-black hover:bg-gray-900 text-white font-bold uppercase tracking-widest text-[10px] transition-all"
+          disabled={isLoading || !password || !confirmPassword}
+          className="w-full h-14 mt-4 bg-black text-white font-bold uppercase tracking-[0.2em] text-[10px] transition-all hover:bg-neutral-800 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update Password'}
-        </Button>
+          {isLoading ? (
+            <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+          ) : (
+            'Update Password'
+          )}
+        </button>
       </form>
-    </>
+    </div>
   );
 }
 
-// 🚀 Wrapping the entire page in Suspense to safely use `useSearchParams`
+// 🚀 Membungkus komponen di dalam Suspense untuk mencegah error deopt useSearchParams di Next.js
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
-      <div className="max-w-md w-full bg-white p-8 md:p-10 rounded-2xl shadow-xl border border-gray-100">
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md">
         <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>}>
           <ResetPasswordForm />
         </Suspense>

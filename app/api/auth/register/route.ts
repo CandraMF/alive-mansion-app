@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from "uuid";
+import { sendVerificationEmail } from "@/lib/mail";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { name, email, password } = body;
 
-    // 1. Validasi Input
+
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
@@ -16,7 +18,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
     }
 
-    // 2. Cek apakah email sudah terdaftar
+
     const existingUser = await prisma.user.findUnique({
       where: { email }
     });
@@ -25,42 +27,59 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email is already registered. Please log in.' }, { status: 400 });
     }
 
-    // 3. Enkripsi Password
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4. Buat User Baru
+
     const newUser = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
+        lastVerificationRequest: new Date(), // 🚀 Set waktu saat pendaftaran
       }
     });
 
-    // ==========================================
-    // 🚀 5. AUTO-CLAIM WELCOME VOUCHER
-    // ==========================================
+    const token = uuidv4();
+    const expires = new Date(new Date().getTime() + 3600 * 1000);
+
+
+    await prisma.verificationToken.create({
+      data: {
+        email: newUser.email!,
+        token,
+        expires,
+      }
+    });
+
+
+    await sendVerificationEmail(newUser.email!, token);
+
+
+
+
+
     let rewardedPromo = null;
 
-    // Cari promo khusus pengguna baru yang masih aktif
+
     const welcomePromo = await prisma.promo.findFirst({
       where: {
         audience: 'NEW_USERS_ONLY',
         isActive: true,
         OR: [
           { endDate: null },
-          { endDate: { gt: new Date() } } // Belum expired
+          { endDate: { gt: new Date() } }
         ]
       }
     });
 
-    // Jika promo ditemukan, masukkan ke dompet user
+
     if (welcomePromo) {
-      // Cek apakah masih ada kuota (jika kuota dibatasi)
+
       if (welcomePromo.quotaTotal === null || welcomePromo.quotaUsed < welcomePromo.quotaTotal) {
 
         await prisma.$transaction([
-          // A. Buat tiket di dompet user
+
           prisma.userVoucher.create({
             data: {
               userId: newUser.id,
@@ -84,11 +103,11 @@ export async function POST(req: Request) {
       }
     }
 
-    // Kembalikan response sukses beserta info hadiahnya (jika ada)
+
     return NextResponse.json({
-      message: 'Registration successful',
+      message: 'Registration successful. Please check your email for verification.',
       user: { id: newUser.id, name: newUser.name, email: newUser.email },
-      reward: rewardedPromo // Data ini akan ditangkap oleh frontend
+      reward: rewardedPromo
     }, { status: 201 });
 
   } catch (error) {
