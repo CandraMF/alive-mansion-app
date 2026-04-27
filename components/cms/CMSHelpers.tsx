@@ -31,10 +31,18 @@ export function CMSBlockWrapper({
 }
 
 // 2. WRAPPER UNTUK TEKS (Menangani Inline Editing)
+// 2. WRAPPER UNTUK TEKS (Menangani Inline Editing)
 export function CMSEditableText({ 
   tag: Tag, data, contentKey, fallback, className, isCms, onUpdate 
 }: { 
-  tag: keyof JSX.IntrinsicElements, data: any, contentKey: string, fallback: string, className?: string, isCms?: boolean, onUpdate?: (key: string, val: string) => void
+  // 🚀 PERUBAHAN DI SINI: Gunakan React.ElementType
+  tag: React.ElementType, 
+  data: any, 
+  contentKey: string, 
+  fallback: string, 
+  className?: string, 
+  isCms?: boolean, 
+  onUpdate?: (key: string, val: string) => void
 }) {
   const content = data[contentKey] || fallback;
 

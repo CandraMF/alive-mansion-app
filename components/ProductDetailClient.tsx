@@ -233,7 +233,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
                   const hexes = color.hexCodes || ['#000000'];
                   let background = hexes[0];
                   if (hexes.length > 1) {
-                    const stops = hexes.map((hex, i) => `${hex} ${(i / hexes.length) * 100}%, ${hex} ${((i + 1) / hexes.length) * 100}%`);
+                    const stops = hexes.map((hex: any, i: number) => `${hex} ${(i / hexes.length) * 100}%, ${hex} ${((i + 1) / hexes.length) * 100}%`);
                     background = `linear-gradient(to right, ${stops.join(', ')})`;
                   }
                   return (
@@ -354,7 +354,7 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
                const hexes = color.hexCodes || ['#000000'];
                let background = hexes[0];
                if (hexes.length > 1) {
-                 const stops = hexes.map((hex, i) => `${hex} ${(i / hexes.length) * 100}%, ${hex} ${((i + 1) / hexes.length) * 100}%`);
+                 const stops = hexes.map((hex: any, i: number) => `${hex} ${(i / hexes.length) * 100}%, ${hex} ${((i + 1) / hexes.length) * 100}%`);
                  background = `linear-gradient(to right, ${stops.join(', ')})`;
                }
                return (

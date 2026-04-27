@@ -24,7 +24,7 @@ export default function AdminFeesPage() {
   const loadFees = async () => {
     setIsLoading(true);
     try {
-      const data = await getFeesAction();
+      const data = await getFeesAction() as any[];
       setFees(data);
     } catch (err) {
       console.error("Failed to load fees");

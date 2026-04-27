@@ -1,51 +1,49 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// Struktur default untuk menu navigasi pertama kali
-const DEFAULT_SETTINGS = {
-  header: {
-    navigation: [
-      { id: "nav-1", label: "Home", type: "page", url: "/" }
-    ]
-  }
-};
-
 // GET: Ambil pengaturan
 export async function GET() {
   try {
-    let settings = await prisma.storeSettings.findUnique({
-      where: { id: 'global' }
+    let settings = await prisma.storeSetting.findUnique({
+      where: { id: 'default' }
     });
 
-    // Jika database masih kosong, buat otomatis dengan data default
     if (!settings) {
-      settings = await prisma.storeSettings.create({
-        data: {
-          id: 'global',
-          content: DEFAULT_SETTINGS
-        }
+      settings = await prisma.storeSetting.create({
+        data: { id: 'default' }
       });
     }
 
-    return NextResponse.json({ success: true, data: settings.content });
+    return NextResponse.json({ success: true, data: settings });
   } catch (error) {
     console.error('Error fetching settings:', error);
     return NextResponse.json({ error: 'Gagal memuat pengaturan' }, { status: 500 });
   }
 }
 
-// PUT: Simpan pengaturan dari Drag & Drop
+// PUT: Simpan pengaturan
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
+    const {
+      storeName, whatsappNumber, originCityId, originCityName,
+      activeCouriers, isMaintenance, taxRate
+    } = body;
 
-    const updatedSettings = await prisma.storeSettings.upsert({
-      where: { id: 'global' },
-      update: { content: body },
-      create: { id: 'global', content: body }
+    const updatedSettings = await prisma.storeSetting.upsert({
+      where: { id: 'default' },
+      update: {
+        storeName, whatsappNumber, originCityId, originCityName,
+        activeCouriers, isMaintenance, taxRate
+      },
+      create: {
+        id: 'default',
+        storeName, whatsappNumber, originCityId, originCityName,
+        activeCouriers, isMaintenance, taxRate
+      }
     });
 
-    return NextResponse.json({ success: true, data: updatedSettings.content });
+    return NextResponse.json({ success: true, data: updatedSettings });
   } catch (error) {
     console.error('Error updating settings:', error);
     return NextResponse.json({ error: 'Gagal menyimpan pengaturan' }, { status: 500 });

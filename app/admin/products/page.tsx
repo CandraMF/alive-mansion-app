@@ -29,6 +29,7 @@ type ProductList = {
   images: { url: string; colorId: string | null; position: number }[];
   variants: { colorId: string; sizeId: string; stock: number; price: number; isMain: boolean; sku: string }[];
   createdAt: string;
+  weight: number;
 };
 
 type PaginationMeta = {

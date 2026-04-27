@@ -68,7 +68,7 @@ export default function SummarySection({
     if (res.error) {
       setClaimMessage({ type: 'error', text: res.error });
     } else {
-      const data = await getCheckoutDataAction();
+      const data = await getCheckoutDataAction() as any;
       onRefreshVouchers(data.vouchers);
       const newlyClaimed = data.vouchers.find((v: any) => v.promo.code === cleanCode);
       if (newlyClaimed && subtotal >= newlyClaimed.promo.minPurchase) {

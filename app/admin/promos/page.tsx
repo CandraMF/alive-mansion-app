@@ -44,7 +44,7 @@ export default function AdminPromosPage() {
   const loadPromos = async () => {
     setIsLoading(true);
     try {
-      const data = await getPromosAction();
+      const data = await getPromosAction() as any[];
       setPromos(data);
     } catch (err) {
       console.error("Failed to load promos");

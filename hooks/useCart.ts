@@ -37,7 +37,7 @@ export const useCart = create<CartStore>((set, get) => ({
   fetchCart: async () => {
     set({ isLoading: true });
     try {
-      const items = await getCartAction();
+      const items = await getCartAction() as CartItem[];
       const allSelected = items.map(item => `${item.id}-${item.size}`);
       set({ items, selectedItems: allSelected });
     } catch (error) {

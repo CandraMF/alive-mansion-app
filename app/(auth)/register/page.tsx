@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, AlertCircle, Mail, Lock, User, Ticket, CheckCircle2, ArrowRight } from 'lucide-react';
@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from 'next/link';
 
-export default function CustomerAuthPage() {
+// 1. PISAHKAN SEMUA LOGIKA KE DALAM KOMPONEN ANAK (CHILD COMPONENT)
+function CustomerAuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
@@ -252,5 +253,21 @@ export default function CustomerAuthPage() {
 
       </div>
     </div>
+  );
+}
+
+// 2. EXPORT DEFAULT COMPONENT YANG MEMBUNGKUS CONTENT DENGAN SUSPENSE
+export default function CustomerAuthPage() {
+  return (
+    // Fallback UI akan muncul sementara Next.js membaca parameter URL
+    <Suspense 
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        </div>
+      }
+    >
+      <CustomerAuthContent />
+    </Suspense>
   );
 }
