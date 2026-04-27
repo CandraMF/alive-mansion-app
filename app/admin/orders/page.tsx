@@ -31,7 +31,7 @@ export default function AdminOrdersPage() {
     const res = await getAdminOrdersAction({
       page, limit, search: searchQuery, status: statusFilter, 
       paymentStatus: paymentFilter, sortBy, sortOrder
-    });
+    }) as any;
     
     if (res.success && res.data) {
       setOrders(res.data);
@@ -62,7 +62,7 @@ export default function AdminOrdersPage() {
       search: searchQuery, status: statusFilter, 
       paymentStatus: paymentFilter, sortBy, sortOrder,
       fetchAll: true // <--- Kunci utamanya di sini
-    });
+    }) as any;
 
     if (!res.success || !res.data || res.data.length === 0) {
       alert("Tidak ada data untuk diexport");

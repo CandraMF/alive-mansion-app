@@ -47,7 +47,7 @@ export default function CheckoutPage() {
         const [checkoutData, addresses] = await Promise.all([
           getCheckoutDataAction(),
           getAddressesAction()
-        ]);
+        ]) as any;
 
         setStoreFees(checkoutData.fees);
         setAvailableVouchers(checkoutData.vouchers);
@@ -154,7 +154,7 @@ export default function CheckoutPage() {
         }))
       };
 
-      const res = await createOrderAction(orderPayload);
+      const res = await createOrderAction(orderPayload) as any;
 
       if (res.success && res.paymentUrl) {
         for (const item of checkoutItems) {

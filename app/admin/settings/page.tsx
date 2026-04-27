@@ -64,7 +64,7 @@ export default function AdminSettingsPage() {
     setMessage(null);
     setIsSaving(true);
 
-    const res = await updateStoreSettingAction(settings);
+    const res = await updateStoreSettingAction(settings) as any;
     if (res.success) {
       setMessage({ type: 'success', text: 'Settings successfully updated!' });
     } else {

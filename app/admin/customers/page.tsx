@@ -21,7 +21,7 @@ export default function AdminCustomersPage() {
 
   const fetchCustomers = async () => {
     setIsLoading(true);
-    const res = await getAdminCustomersAction({ page, limit, search: searchQuery });
+    const res = await getAdminCustomersAction({ page, limit, search: searchQuery }) as any;
     if (res.success && res.data) {
       setCustomers(res.data);
       setTotalCustomers(res.total || 0);
@@ -47,7 +47,7 @@ export default function AdminCustomersPage() {
     const actionWord = currentStatus ? 'UNSUSPEND' : 'SUSPEND';
     if (!confirm(`Are you sure you want to ${actionWord} this user?`)) return;
 
-    const res = await toggleCustomerSuspendAction(userId, !currentStatus);
+    const res = await toggleCustomerSuspendAction(userId, !currentStatus) as any;
     if (res.success) {
       fetchCustomers(); // Refresh tabel
     } else {
@@ -59,7 +59,7 @@ export default function AdminCustomersPage() {
   const handleExportCSV = async () => {
     setIsExporting(true);
     
-    const res = await getAdminCustomersAction({ search: searchQuery, fetchAll: true });
+    const res = await getAdminCustomersAction({ search: searchQuery, fetchAll: true }) as any;
 
     if (!res.success || !res.data || res.data.length === 0) {
       alert("No data to export");

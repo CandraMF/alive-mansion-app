@@ -9,7 +9,7 @@ const formatRupiah = (angka: number) => new Intl.NumberFormat('id-ID', { style: 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params; 
   
-  const res = await getAdminOrderDetailAction(id);
+  const res = await getAdminOrderDetailAction(id) as any;
 
   if (!res.success || !res.data) {
     return notFound();

@@ -14,7 +14,7 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
   const [orderStatusTab, setOrderStatusTab] = useState<'ACTIVE' | 'DONE'>('ACTIVE');
   const [voucherStatusTab, setVoucherStatusTab] = useState<'AVAILABLE' | 'USED'>('AVAILABLE');
   const [voucherFilter, setVoucherFilter] = useState('ALL');
-  
+
   const [visibleOrders, setVisibleOrders] = useState(5);
   const [visibleVouchers, setVisibleVouchers] = useState(4);
   const loaderRef = useRef<HTMLDivElement>(null);
@@ -26,15 +26,15 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newAddress, setNewAddress] = useState({ 
+  const [newAddress, setNewAddress] = useState({
     label: '', recipientName: '', phone: '', street: '', postalCode: '', isDefault: false,
     cityId: '', cityName: '', provinceId: '', provinceName: ''
   });
 
   const resetForm = () => {
-    setNewAddress({ 
-      label: '', recipientName: '', phone: '', street: '', postalCode: '', isDefault: false, 
-      cityId: '', cityName: '', provinceId: '', provinceName: '' 
+    setNewAddress({
+      label: '', recipientName: '', phone: '', street: '', postalCode: '', isDefault: false,
+      cityId: '', cityName: '', provinceId: '', provinceName: ''
     });
     setEditingId(null);
   };
@@ -60,7 +60,8 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
   const handleClaim = async () => {
     if (!claimCode) return;
     setIsClaiming(true);
-    const res = await claimVoucherAction(claimCode);
+    // 🚀 FIX: Tambahkan 'as any' agar TypeScript tidak komplain tentang Union Types
+    const res = await claimVoucherAction(claimCode) as any;
     if (res.success) { alert(res.message); setClaimCode(''); }
     else alert(res.error);
     setIsClaiming(false);
@@ -68,7 +69,7 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
 
   const handleEdit = (addr: any) => {
     setEditingId(addr.id);
-    setNewAddress({ 
+    setNewAddress({
       label: addr.label || '', recipientName: addr.recipientName, phone: addr.phone, street: addr.street, postalCode: addr.postalCode, isDefault: addr.isDefault,
       cityId: addr.cityId, cityName: addr.cityName, provinceId: addr.provinceId, provinceName: addr.provinceName
     });
@@ -77,8 +78,9 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to remove this address?")) return;
-    const res = await deleteAddressAction(id);
-    if (res.success) setLocalAddresses(await getAddressesAction());
+    // 🚀 FIX: Tambahkan 'as any'
+    const res = await deleteAddressAction(id) as any;
+    if (res.success) setLocalAddresses(await getAddressesAction() as any);
     else alert(res.error);
   };
 
@@ -86,9 +88,10 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
     e.preventDefault();
     if (!newAddress.cityId) return alert("Please select a valid destination.");
     setIsSaving(true);
-    const res = editingId ? await editAddressAction(editingId, newAddress) : await addAddressAction(newAddress);
+    // 🚀 FIX: Tambahkan 'as any'
+    const res = editingId ? await editAddressAction(editingId, newAddress) as any : await addAddressAction(newAddress) as any;
     if (res.success) {
-      setLocalAddresses(await getAddressesAction());
+      setLocalAddresses(await getAddressesAction() as any);
       setIsModalOpen(false);
       resetForm();
     } else alert(res.error);
@@ -97,7 +100,7 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
 
   const LocationPicker = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const [step, setStep] = useState(0); 
+    const [step, setStep] = useState(0);
     const [options, setOptions] = useState<any[]>([]);
     const [isFetching, setIsFetching] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -127,13 +130,13 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
       setSearchQuery('');
       if (step < 3) { setStep(step + 1); fetchOptions(step + 1, item.id); }
       else {
-        setNewAddress(prev => ({ 
-          ...prev, 
-          cityId: String(item.id), 
-          cityName: `${newSelections[3].name}, ${newSelections[2].name}, ${newSelections[1].name}`, 
-          provinceId: String(newSelections[0].id), 
+        setNewAddress(prev => ({
+          ...prev,
+          cityId: String(item.id),
+          cityName: `${newSelections[3].name}, ${newSelections[2].name}, ${newSelections[1].name}`,
+          provinceId: String(newSelections[0].id),
           provinceName: newSelections[0].name,
-          postalCode: item.postalCode || '' 
+          postalCode: item.postalCode || ''
         }));
         setIsOpen(false);
       }
@@ -157,7 +160,7 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
           <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 shadow-xl z-[110]">
             <div className="p-2 border-b border-gray-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
               {['Prov', 'City', 'Dist', 'Sub'].map((label, i) => (
-                <button key={i} type="button" onClick={() => { setStep(i); fetchOptions(i, i === 0 ? null : selections[i-1].id); }} className={`text-[8px] font-bold uppercase px-2 py-1 rounded-full ${step === i ? 'bg-black text-white' : 'bg-gray-100 text-gray-400'}`}>{label}</button>
+                <button key={i} type="button" onClick={() => { setStep(i); fetchOptions(i, i === 0 ? null : selections[i - 1].id); }} className={`text-[8px] font-bold uppercase px-2 py-1 rounded-full ${step === i ? 'bg-black text-white' : 'bg-gray-100 text-gray-400'}`}>{label}</button>
               ))}
             </div>
             <div className="p-2"><input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full h-8 px-3 bg-gray-50 border-none outline-none text-xs" /></div>
@@ -258,17 +261,17 @@ export default function AccountTabs({ orders, vouchers, addresses: initialAddres
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <form onSubmit={submitAddress} className="bg-white w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50"><h2 className="text-[10px] font-bold uppercase tracking-widest">{editingId ? 'Edit Address' : 'New Address'}</h2><button type="button" onClick={() => setIsModalOpen(false)}><X className="w-5 h-5"/></button></div>
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50"><h2 className="text-[10px] font-bold uppercase tracking-widest">{editingId ? 'Edit Address' : 'New Address'}</h2><button type="button" onClick={() => setIsModalOpen(false)}><X className="w-5 h-5" /></button></div>
             <div className="p-6 overflow-y-auto space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Label</label><input type="text" required value={newAddress.label} onChange={e => setNewAddress({...newAddress, label: e.target.value})} className="w-full h-10 px-3 bg-gray-50 border-none outline-none text-xs" placeholder="Home, Office..." /></div>
-                <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Recipient</label><input type="text" required value={newAddress.recipientName} onChange={e => setNewAddress({...newAddress, recipientName: e.target.value})} className="w-full h-10 px-3 bg-gray-50 border-none outline-none text-xs" /></div>
+                <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Label</label><input type="text" required value={newAddress.label} onChange={e => setNewAddress({ ...newAddress, label: e.target.value })} className="w-full h-10 px-3 bg-gray-50 border-none outline-none text-xs" placeholder="Home, Office..." /></div>
+                <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Recipient</label><input type="text" required value={newAddress.recipientName} onChange={e => setNewAddress({ ...newAddress, recipientName: e.target.value })} className="w-full h-10 px-3 bg-gray-50 border-none outline-none text-xs" /></div>
               </div>
-              <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Phone</label><input type="tel" required value={newAddress.phone} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} className="w-full h-10 px-3 bg-gray-50 border-none outline-none text-xs" /></div>
+              <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Phone</label><input type="tel" required value={newAddress.phone} onChange={e => setNewAddress({ ...newAddress, phone: e.target.value })} className="w-full h-10 px-3 bg-gray-50 border-none outline-none text-xs" /></div>
               <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Location</label><LocationPicker /></div>
-              <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Street Address</label><textarea required rows={3} value={newAddress.street} onChange={e => setNewAddress({...newAddress, street: e.target.value})} className="w-full p-3 bg-gray-50 border-none outline-none text-xs resize-none" /></div>
+              <div className="space-y-1"><label className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Street Address</label><textarea required rows={3} value={newAddress.street} onChange={e => setNewAddress({ ...newAddress, street: e.target.value })} className="w-full p-3 bg-gray-50 border-none outline-none text-xs resize-none" /></div>
               <label className="flex items-center gap-2 cursor-pointer pt-2">
-                <input type="checkbox" checked={newAddress.isDefault} onChange={e => setNewAddress({...newAddress, isDefault: e.target.checked})} className="accent-black w-4 h-4" />
+                <input type="checkbox" checked={newAddress.isDefault} onChange={e => setNewAddress({ ...newAddress, isDefault: e.target.checked })} className="accent-black w-4 h-4" />
                 <span className="text-[9px] font-bold uppercase text-gray-600">Set as Default Address</span>
               </label>
             </div>

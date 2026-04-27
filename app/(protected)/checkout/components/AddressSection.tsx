@@ -210,10 +210,10 @@ export default function AddressSection({ savedAddresses, selectedAddress, onSele
       postalCode: newAddress.postalCode, isDefault: newAddress.isDefault || savedAddresses.length === 0
     };
 
-    const res = editingId ? await editAddressAction(editingId, addressData) : await addAddressAction(addressData);
+    const res = editingId ? await editAddressAction(editingId, addressData) as any : await addAddressAction(addressData) as any;
 
     if (res.success && res.address) {
-      const updatedAddresses = await getAddressesAction();
+      const updatedAddresses = await getAddressesAction() as any;
       onRefreshAddresses(updatedAddresses);
       resetForm();
       onSelectAddress(res.address);

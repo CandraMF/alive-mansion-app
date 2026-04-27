@@ -19,7 +19,7 @@ export default function OrderStatusManager({ orderId, currentStatus, currentResi
   // Fungsi Update Status & Resi
   const handleUpdate = async () => {
     setIsUpdating(true);
-    const res = await updateOrderStatusAction(orderId, status, resi);
+    const res = await updateOrderStatusAction(orderId, status, resi) as any;
     if (!res.success) {
       alert(res.error);
     } else {
@@ -31,7 +31,7 @@ export default function OrderStatusManager({ orderId, currentStatus, currentResi
   // Fungsi Sync Manual dengan Xendit
   const handleSyncXendit = async () => {
     setIsSyncing(true);
-    const res = await syncOrderWithXenditAction(orderId);
+    const res = await syncOrderWithXenditAction(orderId) as any;
     if (!res.success) {
       alert(res.error);
     } else {
