@@ -19,6 +19,18 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'pub-3d3a4cb761e54f86b2a37dcf43daa05e.r2.dev',
+        port: '',
+        pathname: '/**', // Mengizinkan semua folder di dalam bucket ini
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.alivemansion.com',
+        port: '',
+        pathname: '/**', // Mengizinkan semua folder di dalam bucket ini
+      },
     ],
   },
 };
